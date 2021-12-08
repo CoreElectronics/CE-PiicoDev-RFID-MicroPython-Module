@@ -9,17 +9,17 @@ compat_str = '\nUnified PiicoDev library out of date.  Get the latest module: ht
 _I2C_ADDRESS     = 0x2C
 _REG_COMMAND     = 0x01
 _REG_COM_I_EN    = 0x02
-
-
-
 _REG_STATUS_1    = 0x07
+_REG_STATUS_2    = 0x08
+_REG_MODE        = 0x11
+_REG_TX_ASK      = 0x15
 _REG_BIT_FRAMING = 0x0D
-_REG_T_MODE      = 0x2A # init 0x8D(1000 1101).(TAuto, PrescalerHI set to 1101) 0x80(1000 0000) TAuto, Prescaler set to 0 0x00
-_REG_T_PRESCALER = 0x2B # init 0x0x3E
-_REG_VERSION = 0x37
-_CMD_SOFT_RESET = b'\x0F'
-
-
+_REG_T_MODE      = 0x2A
+_REG_T_PRESCALER = 0x2B
+_REG_T_RELOAD_HI = 0x2C
+_REG_T_RELOAD_LO = 0x2D
+_REG_VERSION     = 0x37
+_CMD_SOFT_RESET  = 0x0F
 
 def _writeNibble(x, n, c):
     x = _writeBit(x, n, _readBit(c, 0))
@@ -87,7 +87,7 @@ class PiicoDev_MFRC522(object):
         self._wreg(0x01, cmd)
 
         if cmd == 0x0C:
-            self._sflags(0x0D, 0x80)
+            self._sflags(_REG_BIT_FRAMING, 0x80)
 
         i = 2000
         while True:
@@ -96,7 +96,7 @@ class PiicoDev_MFRC522(object):
             if ~((i != 0) and ~(n & 0x01) and ~(n & wait_irq)):
                 break
 
-        self._cflags(0x0D, 0x80)
+        self._cflags(_REG_BIT_FRAMING, 0x80)
 
         if i:
             if (self._rreg(0x06) & 0x1B) == 0x00:
@@ -146,16 +146,17 @@ class PiicoDev_MFRC522(object):
     def init(self):
 
         self.reset()
-        self._wreg(0x2A, 0x8D)
-        self._wreg(0x2B, 0x3E)
-        self._wreg(0x2D, 30)
-        self._wreg(0x2C, 0)
-        self._wreg(0x15, 0x40)
-        self._wreg(0x11, 0x3D)
+        self._wreg(_REG_T_MODE, 0x80)
+        self._wreg(_REG_T_PRESCALER, 0xA9)
+        self._wreg(_REG_T_RELOAD_HI, 0x03)
+        self._wreg(_REG_T_RELOAD_LO, 0xE8)
+        self._wreg(_REG_TX_ASK, 0x40)
+        self._wreg(_REG_MODE, 0x3D)
         self.antenna_on()
+        print('device initialised')
 
     def reset(self):
-        self._wreg(0x01, 0x0F)
+        self._wreg(_REG_COMMAND, _CMD_SOFT_RESET)
 
     def antenna_on(self, on=True):
 
@@ -206,7 +207,8 @@ class PiicoDev_MFRC522(object):
         return self._tocard(0x0E, [mode, addr] + sect + ser[:4])[0]
 
     def stop_crypto1(self):
-        self._cflags(0x08, 0x08)
+        self._cflags(_REG_STATUS_2, 0x08)
+        print('crypto off')
 
     def read(self, addr):
 

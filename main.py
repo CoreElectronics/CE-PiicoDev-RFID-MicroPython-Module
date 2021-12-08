@@ -16,6 +16,7 @@ while True:
 
     (stat, tag_type) = scanner.request(scanner.REQIDL)
     print(stat)
+    print(tag_type)
     if stat == scanner.OK:
 
         (stat, raw_uid) = scanner.anticoll()
@@ -30,7 +31,7 @@ while True:
 
                 key = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]
 
-                if rdr.auth(rdr.AUTHENT1A, 8, key, raw_uid) == rdr.OK:
+                if scanner.auth(rdr.AUTHENT1A, 8, key, raw_uid) == rdr.OK:
                     print("Address 8 data: %s" % rdr.read(8))
                     scanner.stop_crypto1()
                 else:
