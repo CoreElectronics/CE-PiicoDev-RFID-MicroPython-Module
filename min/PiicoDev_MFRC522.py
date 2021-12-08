@@ -6,6 +6,7 @@ _REG_COMMAND=1
 _REG_COM_I_EN=2
 _REG_STATUS_1=7
 _REG_STATUS_2=8
+_REG_FIFO_DATA=9
 _REG_MODE=17
 _REG_TX_ASK=21
 _REG_BIT_FRAMING=13
@@ -13,7 +14,9 @@ _REG_T_MODE=42
 _REG_T_PRESCALER=43
 _REG_T_RELOAD_HI=44
 _REG_T_RELOAD_LO=45
+_REG_AUTO_TEST=54
 _REG_VERSION=55
+_CMD_CALC_CRC=3
 _CMD_SOFT_RESET=15
 def _writeNibble(x,n,c):x=_writeBit(x,n,_readBit(c,0));return _writeBit(x,n+1,_readBit(c,1))
 class PiicoDev_MFRC522:
@@ -92,3 +95,4 @@ class PiicoDev_MFRC522:
 			buf+=self._crc(buf);stat,recv,bits=self._tocard(12,buf)
 			if not stat==self.OK or not bits==4 or not recv[0]&15==10:stat=self.ERR
 		return stat
+	def SelfTest(self):self.reset();self._wreg(_REG_FIFO_DATA,bytearray(25));self._wreg(_REG_AUTO_TEST,9);self._wreg(_REG_FIFO_DATA,0);self._wreg(_REG_COMMAND,_CMD_CALC_CRC);sleep_ms(1000);test_output=self.i2c.readfrom_mem(self.addr,_REG_FIFO_DATA,64);print('test output');print(test_output);version=self.i2c.readfrom_mem(self.addr,_REG_VERSION,1);print('version');print(version)
