@@ -11,6 +11,7 @@ _REG_COMMAND     = 0x01
 _REG_COM_I_EN    = 0x02
 _REG_STATUS_1    = 0x07
 _REG_STATUS_2    = 0x08
+_REG_FIFO_DATA   = 0x09
 _REG_MODE        = 0x11
 _REG_TX_ASK      = 0x15
 _REG_BIT_FRAMING = 0x0D
@@ -18,7 +19,9 @@ _REG_T_MODE      = 0x2A
 _REG_T_PRESCALER = 0x2B
 _REG_T_RELOAD_HI = 0x2C
 _REG_T_RELOAD_LO = 0x2D
+_REG_AUTO_TEST   = 0x36
 _REG_VERSION     = 0x37
+_CMD_CALC_CRC    = 0x03
 _CMD_SOFT_RESET  = 0x0F
 
 def _writeNibble(x, n, c):
@@ -236,3 +239,16 @@ class PiicoDev_MFRC522(object):
 
         return stat
 
+    def SelfTest(self): # page 82
+        self.reset()
+        self._wreg(_REG_FIFO_DATA, bytearray(25))
+        self._wreg(_REG_AUTO_TEST, 0x09)
+        self._wreg(_REG_FIFO_DATA, 0x00)
+        self._wreg(_REG_COMMAND, _CMD_CALC_CRC)
+        sleep_ms(1000)
+        test_output = self.i2c.readfrom_mem(self.addr, _REG_FIFO_DATA, 64)
+        print('test output')
+        print(test_output)
+        version = self.i2c.readfrom_mem(self.addr, _REG_VERSION, 1)
+        print('version')
+        print(version)

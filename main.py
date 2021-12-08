@@ -17,6 +17,8 @@ while True:
     (stat, tag_type) = scanner.request(scanner.REQIDL)
     print(stat)
     print(tag_type)
+    #scanner.SelfTest()
+    
     if stat == scanner.OK:
 
         (stat, raw_uid) = scanner.anticoll()
