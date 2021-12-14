@@ -9,6 +9,7 @@ compat_str = '\nUnified PiicoDev library out of date.  Get the latest module: ht
 _I2C_ADDRESS     = 0x2C
 _REG_COMMAND     = 0x01
 _REG_COM_I_EN    = 0x02
+_REG_DIV_I_EN    = 0x03
 _REG_COM_IRQ     = 0x04
 _REG_DIV_IRQ     = 0x05
 _REG_ERROR       = 0x06
@@ -219,6 +220,11 @@ class PiicoDev_MFRC522(object):
         self._wreg(_REG_TX_ASK, 0x40)
         #self._wreg(_REG_MODE, b'\x3D')
         self._wreg(_REG_MODE, 0x3D)
+        print('first intrerrupt')
+        print(self._rreg(_REG_COM_I_EN)) #247: 1111 0111
+        print('2nd interrupt')
+        print(self._rreg(_REG_DIV_I_EN)) #0
+        self._wreg(_REG_DIV_I_EN, 0x80)
         self.antenna_on()
         print('device initialised')
 
@@ -301,6 +307,7 @@ class PiicoDev_MFRC522(object):
             buf = []
             for i in range(16):
                 buf.append(data[i])
+                print(i)
             buf += self._crc(buf)
             (stat, recv, bits) = self._tocard(_CMD_TRANCEIVE, buf)
             if not (stat == self.OK) or not (bits == 4) or not ((recv[0] & 0x0F) == 0x0A):
@@ -370,24 +377,24 @@ class PiicoDev_MFRC522(object):
         return (self.OK , valid_uid[:len(valid_uid)-1])
         #return (self.OK , valid_uid)
     
-    def anticoll(self,anticolN):
-
-        ser_chk = 0
-        ser = [anticolN, 0x20]
-
-        self._wreg(0x0D, 0x00)
-        (stat, recv, bits) = self._tocard(0x0C, ser)
-
-        if stat == self.OK:
-            if len(recv) == 5:
-                for i in range(4):
-                    ser_chk = ser_chk ^ recv[i]
-                if ser_chk != recv[4]:
-                    stat = self.ERR
-            else:
-                stat = self.ERR
-
-        return stat, recv
+#     def anticoll(self,anticolN):
+# 
+#         ser_chk = 0
+#         ser = [anticolN, 0x20]
+# 
+#         self._wreg(0x0D, 0x00)
+#         (stat, recv, bits) = self._tocard(0x0C, ser)
+# 
+#         if stat == self.OK:
+#             if len(recv) == 5:
+#                 for i in range(4):
+#                     ser_chk = ser_chk ^ recv[i]
+#                 if ser_chk != recv[4]:
+#                     stat = self.ERR
+#             else:
+#                 stat = self.ERR
+# 
+#         return stat, recv
     
     def PcdSelect(self, serNum,anticolN):
         backData = []
