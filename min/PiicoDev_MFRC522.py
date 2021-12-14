@@ -4,6 +4,7 @@ compat_str='\nUnified PiicoDev library out of date.  Get the latest module: http
 _I2C_ADDRESS=44
 _REG_COMMAND=1
 _REG_COM_I_EN=2
+_REG_DIV_I_EN=3
 _REG_COM_IRQ=4
 _REG_DIV_IRQ=5
 _REG_ERROR=6
@@ -80,7 +81,7 @@ class PiicoDev_MFRC522:
 			n=self._rreg(_REG_DIV_IRQ);i-=1
 			if not(i!=0 and not n&4):break
 		return[self._rreg(34),self._rreg(33)]
-	def init(self):sleep_ms(50);self._wreg(_REG_T_MODE,128);self._wreg(_REG_T_PRESCALER,169);self._wreg(_REG_T_RELOAD_HI,3);self._wreg(_REG_T_RELOAD_LO,232);self._wreg(_REG_TX_ASK,64);self._wreg(_REG_MODE,61);self.antenna_on();print('device initialised')
+	def init(self):sleep_ms(50);self._wreg(_REG_T_MODE,128);self._wreg(_REG_T_PRESCALER,169);self._wreg(_REG_T_RELOAD_HI,3);self._wreg(_REG_T_RELOAD_LO,232);self._wreg(_REG_TX_ASK,64);self._wreg(_REG_MODE,61);print('first intrerrupt');print(self._rreg(_REG_COM_I_EN));print('2nd interrupt');print(self._rreg(_REG_DIV_I_EN));self._wreg(_REG_DIV_I_EN,128);self.antenna_on();print('device initialised')
 	def reset(self):self._wreg(_REG_COMMAND,_CMD_SOFT_RESET)
 	def antenna_on(self,on=True):
 		if on and~(self._rreg(_REG_TX_CONTROL)&3):self._sflags(_REG_TX_CONTROL,131)
@@ -106,7 +107,7 @@ class PiicoDev_MFRC522:
 		if not stat==self.OK or not bits==4 or not recv[0]&15==10:stat=self.ERR
 		else:
 			buf=[]
-			for i in range(16):buf.append(data[i])
+			for i in range(16):buf.append(data[i]);print(i)
 			buf+=self._crc(buf);stat,recv,bits=self._tocard(_CMD_TRANCEIVE,buf)
 			if not stat==self.OK or not bits==4 or not recv[0]&15==10:stat=self.ERR
 		return stat
@@ -133,14 +134,6 @@ class PiicoDev_MFRC522:
 				if self.MFRC522_PcdSelect(uid,self.PICC_ANTICOLL3)==0:return self.ERR,[]
 				if self.DEBUG:print('PcdSelect(3) {}'.format(uid))
 		valid_uid.extend(uid[0:5]);return self.OK,valid_uid[:len(valid_uid)-1]
-	def anticoll(self,anticolN):
-		ser_chk=0;ser=[anticolN,32];self._wreg(13,0);stat,recv,bits=self._tocard(12,ser)
-		if stat==self.OK:
-			if len(recv)==5:
-				for i in range(4):ser_chk=ser_chk^recv[i]
-				if ser_chk!=recv[4]:stat=self.ERR
-			else:stat=self.ERR
-		return stat,recv
 	def PcdSelect(self,serNum,anticolN):
 		backData=[];buf=[];buf.append(anticolN);buf.append(112)
 		for i in serNum:buf.append(i)
