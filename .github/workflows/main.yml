@@ -7,7 +7,7 @@ on:
   push:
     branches: [ main ]
     paths:
-      - 'PiicoDev_MFRC522.py'
+      - 'PiicoDev_RFID.py'
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
@@ -30,14 +30,14 @@ jobs:
         run: pip install python-minifier 
 
       - name: run minifier
-        run: pyminify PiicoDev_MFRC522.py > min/PiicoDev_MFRC522.py
+        run: pyminify PiicoDev_RFID.py > min/PiicoDev_RFID.py
           
       - name: commit files
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add -A
-          git commit -m "Update min/PiicoDev_MFRC522.py" -a --allow-empty
+          git commit -m "Update min/PiicoDev_RFID.py" -a --allow-empty
           
       - name: push changes
         uses: ad-m/github-push-action@v0.6.0
