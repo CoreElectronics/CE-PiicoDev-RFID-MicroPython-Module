@@ -1,10 +1,12 @@
 # PiicoDev MFRC522 minimal example code
 
-from PiicoDev_MFRC522 import *
+from PiicoDev_RFID import *
+from PiicoDev_Buzzer import *
 #from mfrc522 import MFRC522
 #from PiicoDev_Unified import sleep_ms
 # Initialise Sensor
-scanner = PiicoDev_MFRC522()
+scanner = PiicoDev_RFID()
+buzzer = PiicoDev_Buzzer()
 #reader = PiicoDev_MFRC522
 
     # Read and print light data
@@ -14,7 +16,7 @@ print("")
 print("Place card before reader to read from address 0x08")
 print("")
 
-scanner.init()
+#scanner.init()
 
 
 
@@ -123,7 +125,9 @@ def do_read():
                     print("  - tag type: 0x%02x" % tag_type)
                     print("  - uid	 : 0x%02x%02x%02x%02x" % (raw_uid[0], raw_uid[1], raw_uid[2], raw_uid[3]))
                     print("")
-
+                    
+                    buzzer.tone(100, 100)
+                    
                     if scanner.select_tag(raw_uid) == scanner.OK:
 
                         key = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]
@@ -131,8 +135,10 @@ def do_read():
                         if scanner.auth(scanner.AUTHENT1A, 8, key, raw_uid) == scanner.OK:
                             raw_data = scanner.read(8)
                             print("Address 8 data: %s" % raw_data)
-                            pet_name_from_tag = "".join(chr(x) for x in raw_data)
-                            print(pet_name_from_tag)
+                            print(type(raw_data))
+                            if raw_data is not None:
+                                pet_name_from_tag = "".join(chr(x) for x in raw_data)
+                                print(pet_name_from_tag)
                             scanner.stop_crypto1()
                         else:
                             print("Authentication error")
@@ -143,7 +149,7 @@ def do_read():
         print("Bye")
 
 readRFID()
-scanner.write(0x08, 8)
+#scanner.write(0x08, 8)
 while True:
     #readRFID()
     #do_write()

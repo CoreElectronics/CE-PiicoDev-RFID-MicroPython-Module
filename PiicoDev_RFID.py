@@ -51,7 +51,7 @@ def _writeCrumb(x, n, c):
     x = _writeBit(x, n, _readBit(c, 0))
     return _writeBit(x, n+1, _readBit(c, 1))
 
-class PiicoDev_MFRC522(object):
+class PiicoDev_RFID(object):
     DEBUG = False
     OK = 0
     NOTAGERR = 1
