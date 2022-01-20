@@ -1,4 +1,5 @@
-_A=None
+_B=None
+_A=True
 from PiicoDev_Unified import *
 compat_str='\nUnified PiicoDev library out of date.  Get the latest module: https://piico.dev/unified \n'
 _I2C_ADDRESS=44
@@ -26,6 +27,11 @@ _REG_VERSION=55
 _CMD_CALC_CRC=3
 _CMD_TRANCEIVE=12
 _CMD_SOFT_RESET=15
+_TAG_CMD_REQIDL=38
+_TAG_CMD_REQALL=82
+_TAG_CMD_ANTCOL1=147
+_TAG_CMD_ANTCOL2=149
+_TAG_CMD_ANTCOL3=151
 def _readBit(x,n):return x&1<<n!=0
 def _setBit(x,n):return x|1<<n
 def _clearBit(x,n):return x&~(1<<n)
@@ -34,8 +40,8 @@ def _writeBit(x,n,b):
 	else:return _setBit(x,n)
 def _writeCrumb(x,n,c):x=_writeBit(x,n,_readBit(c,0));return _writeBit(x,n+1,_readBit(c,1))
 class PiicoDev_RFID:
-	DEBUG=False;OK=0;NOTAGERR=1;ERR=2;REQIDL=38;REQALL=82;AUTHENT1A=96;AUTHENT1B=97;PICC_ANTICOLL1=147;PICC_ANTICOLL2=149;PICC_ANTICOLL3=151
-	def __init__(self,bus=_A,freq=_A,sda=_A,scl=_A,addr=_I2C_ADDRESS):
+	DEBUG=_A;OK=10;NOTAGERR=31;ERR=42;AUTHENT1A=96;AUTHENT1B=97
+	def __init__(self,bus=_B,freq=_B,sda=_B,scl=_B,addr=_I2C_ADDRESS):
 		try:
 			if compat_ind>=1:0
 			else:print(compat_str)
@@ -54,7 +60,7 @@ class PiicoDev_RFID:
 		self._wreg(_REG_COMMAND,cmd)
 		if cmd==_CMD_TRANCEIVE:self._sflags(_REG_BIT_FRAMING,128)
 		i=2000
-		while True:
+		while _A:
 			n=self._rreg(_REG_COM_IRQ);i-=1
 			if n&wait_irq:break
 			if n&1:break
@@ -77,21 +83,21 @@ class PiicoDev_RFID:
 		self._cflags(_REG_DIV_IRQ,4);self._sflags(_REG_FIFO_LEVEL,128)
 		for c in data:self._wreg(_REG_FIFO_DATA,c)
 		self._wreg(_REG_COMMAND,3);i=255
-		while True:
+		while _A:
 			n=self._rreg(_REG_DIV_IRQ);i-=1
 			if not(i!=0 and not n&4):break
 		return[self._rreg(34),self._rreg(33)]
-	def init(self):sleep_ms(50);self._wreg(_REG_T_MODE,128);self._wreg(_REG_T_PRESCALER,169);self._wreg(_REG_T_RELOAD_HI,3);self._wreg(_REG_T_RELOAD_LO,232);self._wreg(_REG_TX_ASK,64);self._wreg(_REG_MODE,61);print('first intrerrupt');print(self._rreg(_REG_COM_I_EN));print('2nd interrupt');print(self._rreg(_REG_DIV_I_EN));self._wreg(_REG_DIV_I_EN,128);self.antenna_on();print('device initialised')
+	def init(self):sleep_ms(50);self._wreg(_REG_T_MODE,128);self._wreg(_REG_T_PRESCALER,169);self._wreg(_REG_T_RELOAD_HI,3);self._wreg(_REG_T_RELOAD_LO,232);self._wreg(_REG_TX_ASK,64);self._wreg(_REG_MODE,61);self._wreg(_REG_DIV_I_EN,128);self.antenna_on();print('Device Initialised')
 	def reset(self):self._wreg(_REG_COMMAND,_CMD_SOFT_RESET)
-	def antenna_on(self,on=True):
+	def antenna_on(self,on=_A):
 		if on and~(self._rreg(_REG_TX_CONTROL)&3):self._sflags(_REG_TX_CONTROL,131)
 		else:print('antenna code here 2');self._cflags(_REG_TX_CONTROL,b'\x03')
 	def request(self,mode):
 		self._wreg(_REG_BIT_FRAMING,7);stat,recv,bits=self._tocard(_CMD_TRANCEIVE,[mode])
 		if(stat!=self.OK)|(bits!=16):stat=self.ERR
 		return stat,bits
-	def anticoll(self):
-		ser_chk=0;ser=[147,32];self._wreg(_REG_BIT_FRAMING,0);stat,recv,bits=self._tocard(_CMD_TRANCEIVE,ser)
+	def anticoll(self,anticolN=_TAG_CMD_ANTCOL1):
+		ser_chk=0;ser=[anticolN,32];self._wreg(_REG_BIT_FRAMING,0);stat,recv,bits=self._tocard(_CMD_TRANCEIVE,ser);print(recv,bits)
 		if stat==self.OK:
 			if len(recv)==5:
 				for i in range(4):ser_chk=ser_chk^recv[i]
@@ -101,7 +107,7 @@ class PiicoDev_RFID:
 	def select_tag(self,ser):buf=[147,112]+ser[:5];buf+=self._crc(buf);stat,recv,bits=self._tocard(_CMD_TRANCEIVE,buf);return self.OK if stat==self.OK and bits==24 else self.ERR
 	def auth(self,mode,addr,sect,ser):return self._tocard(14,[mode,addr]+sect+ser[:4])[0]
 	def stop_crypto1(self):self._cflags(_REG_STATUS_2,8)
-	def read(self,addr):data=[48,addr];data+=self._crc(data);stat,recv,_=self._tocard(_CMD_TRANCEIVE,data);return recv if stat==self.OK else _A
+	def read(self,addr):data=[48,addr];data+=self._crc(data);stat,recv,_=self._tocard(_CMD_TRANCEIVE,data);return recv if stat==self.OK else _B
 	def write(self,addr,data):
 		buf=[160,addr];buf+=self._crc(buf);stat,recv,bits=self._tocard(_CMD_TRANCEIVE,buf)
 		if not stat==self.OK or not bits==4 or not recv[0]&15==10:stat=self.ERR
@@ -112,26 +118,26 @@ class PiicoDev_RFID:
 			if not stat==self.OK or not bits==4 or not recv[0]&15==10:stat=self.ERR
 		return stat
 	def SelfTest(self):self.reset();self._wreg(_REG_FIFO_DATA,bytes([25]));self._wreg(_REG_AUTO_TEST,9);self._wreg(_REG_FIFO_DATA,0);self._wreg(_REG_COMMAND,_CMD_CALC_CRC);sleep_ms(1000);test_output=self.i2c.readfrom_mem(self.addr,_REG_FIFO_DATA,64);version=self.i2c.readfrom_mem(self.addr,_REG_VERSION,1)
-	def readID(self):stat,bits=self.request(self.REQIDL);return stat,bits
+	def readID(self):stat,bits=self.request(_TAG_CMD_REQIDL);return stat,bits
 	def SelectTagSN(self):
-		valid_uid=[];status,uid=self.anticoll(self.PICC_ANTICOLL1)
+		valid_uid=[];status,uid=self.anticoll(_TAG_CMD_ANTCOL1)
 		if status!=self.OK:return self.ERR,[]
 		if self.DEBUG:print('anticol(1) {}'.format(uid))
-		if self.PcdSelect(uid,self.PICC_ANTICOLL1)==0:return self.ERR,[]
+		if self.PcdSelect(uid,_TAG_CMD_ANTCOL1)==0:return self.ERR,[]
 		if self.DEBUG:print('pcdSelect(1) {}'.format(uid))
 		if uid[0]==136:
-			valid_uid.extend(uid[1:4]);status,uid=self.anticoll(self.PICC_ANTICOLL2)
+			valid_uid.extend(uid[1:4]);status,uid=self.anticoll(_TAG_CMD_ANTCOL2)
 			if status!=self.OK:return self.ERR,[]
 			if self.DEBUG:print('Anticol(2) {}'.format(uid))
-			rtn=self.PcdSelect(uid,self.PICC_ANTICOLL2)
+			rtn=self.PcdSelect(uid,_TAG_CMD_ANTCOL2)
 			if self.DEBUG:print('pcdSelect(2) return={} uid={}'.format(rtn,uid))
 			if rtn==0:return self.ERR,[]
 			if self.DEBUG:print('PcdSelect2() {}'.format(uid))
 			if uid[0]==136:
-				valid_uid.extend(uid[1:4]);status,uid=self.anticoll(self.PICC_ANTICOLL3)
+				valid_uid.extend(uid[1:4]);status,uid=self.anticoll(_TAG_CMD_ANTCOL3)
 				if status!=self.OK:return self.ERR,[]
 				if self.DEBUG:print('Anticol(3) {}'.format(uid))
-				if self.MFRC522_PcdSelect(uid,self.PICC_ANTICOLL3)==0:return self.ERR,[]
+				if self.MFRC522_PcdSelect(uid,_TAG_CMD_ANTCOL3)==0:return self.ERR,[]
 				if self.DEBUG:print('PcdSelect(3) {}'.format(uid))
 		valid_uid.extend(uid[0:5]);return self.OK,valid_uid[:len(valid_uid)-1]
 	def PcdSelect(self,serNum,anticolN):
@@ -140,3 +146,11 @@ class PiicoDev_RFID:
 		pOut=self._crc(buf);buf.append(pOut[0]);buf.append(pOut[1]);status,backData,backLen=self._tocard(12,buf)
 		if status==self.OK and backLen==24:return 1
 		else:return 0
+	def detectTag(self):
+		stat,type=self.request(_TAG_CMD_REQIDL);_present=False
+		if stat is self.OK:_present=_A
+		return{'present':_present,'type':type}
+	def readTagID(self):
+		stat,id=self.anticoll();_success=_A
+		if stat is self.OK:_success=_A
+		return{'success':_success,'id':id}
