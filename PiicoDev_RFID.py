@@ -32,6 +32,13 @@ _CMD_CALC_CRC    = 0x03
 _CMD_TRANCEIVE   = 0x0C
 _CMD_SOFT_RESET  = 0x0F
 
+# RFID Tag (Proximity Integrated Circuit Card)
+_TAG_CMD_REQIDL  = 0x26
+_TAG_CMD_REQALL  = 0x52
+_TAG_CMD_ANTCOL1 = 0x93
+_TAG_CMD_ANTCOL2 = 0x95
+_TAG_CMD_ANTCOL3 = 0x97
+
 def _readBit(x, n):
     return x & 1 << n != 0
 
@@ -52,19 +59,15 @@ def _writeCrumb(x, n, c):
     return _writeBit(x, n+1, _readBit(c, 1))
 
 class PiicoDev_RFID(object):
-    DEBUG = False
-    OK = 0
-    NOTAGERR = 1
-    ERR = 2
-
-    REQIDL = 0x26
-    REQALL = 0x52
-    AUTHENT1A = 0x60
-    AUTHENT1B = 0x61
+    DEBUG = True
+    OK = 10   # Can put any number here - not used for communicating past this program
+    NOTAGERR = 31  # Can put any number here - not used for communicating past this program
+    ERR = 42 # Can put any number here - not used for communicating past this program
+   
+    AUTHENT1A = 0x60  #0110 0000
+    AUTHENT1B = 0x61  #0110 0001
     
-    PICC_ANTICOLL1 = 0x93
-    PICC_ANTICOLL2 = 0x95
-    PICC_ANTICOLL3 = 0x97
+
 
     def __init__(self, bus=None, freq=None, sda=None, scl=None, addr=_I2C_ADDRESS):
         try:
@@ -220,13 +223,9 @@ class PiicoDev_RFID(object):
         self._wreg(_REG_TX_ASK, 0x40)
         #self._wreg(_REG_MODE, b'\x3D')
         self._wreg(_REG_MODE, 0x3D)
-        print('first intrerrupt')
-        print(self._rreg(_REG_COM_I_EN)) #247: 1111 0111
-        print('2nd interrupt')
-        print(self._rreg(_REG_DIV_I_EN)) #0
         self._wreg(_REG_DIV_I_EN, 0x80)
         self.antenna_on()
-        print('device initialised')
+        print('Device Initialised')
 
     def reset(self):
         self._wreg(_REG_COMMAND, _CMD_SOFT_RESET)
@@ -256,14 +255,14 @@ class PiicoDev_RFID(object):
 
         return stat, bits
 
-    def anticoll(self):
+    def anticoll(self, anticolN=_TAG_CMD_ANTCOL1):
 
         ser_chk = 0
-        ser = [0x93, 0x20]
+        ser = [anticolN, 0x20]
 
         self._wreg(_REG_BIT_FRAMING, 0x00)
         (stat, recv, bits) = self._tocard(_CMD_TRANCEIVE, ser)
-
+        print(recv, bits)
         if stat == self.OK:
             if len(recv) == 5:
                 for i in range(4):
@@ -330,18 +329,18 @@ class PiicoDev_RFID(object):
         #print(version)
         
     def readID(self):
-        stat, bits = self.request(self.REQIDL)
+        stat, bits = self.request(_TAG_CMD_REQIDL)
         return stat, bits
     
     def SelectTagSN(self):
         valid_uid=[]
-        (status,uid)= self.anticoll(self.PICC_ANTICOLL1)
+        (status,uid)= self.anticoll(_TAG_CMD_ANTCOL1)
         #print("Select Tag 1:",self.tohexstring(uid))
         if status != self.OK:
             return  (self.ERR,[])
         
         if self.DEBUG:   print("anticol(1) {}".format(uid))
-        if self.PcdSelect(uid,self.PICC_ANTICOLL1) == 0:
+        if self.PcdSelect(uid,_TAG_CMD_ANTCOL1) == 0:
             return (self.ERR,[])
         if self.DEBUG:   print("pcdSelect(1) {}".format(uid))
         
@@ -349,12 +348,12 @@ class PiicoDev_RFID(object):
         if uid[0] == 0x88 :
             #ok we have another type of card
             valid_uid.extend(uid[1:4])
-            (status,uid)=self.anticoll(self.PICC_ANTICOLL2)
+            (status,uid)=self.anticoll(_TAG_CMD_ANTCOL2)
             #print("Select Tag 2:",self.tohexstring(uid))
             if status != self.OK:
                 return (self.ERR,[])
             if self.DEBUG: print("Anticol(2) {}".format(uid))
-            rtn =  self.PcdSelect(uid,self.PICC_ANTICOLL2)
+            rtn =  self.PcdSelect(uid,_TAG_CMD_ANTCOL2)
             if self.DEBUG: print("pcdSelect(2) return={} uid={}".format(rtn,uid))
             if rtn == 0:
                 return (self.ERR,[])
@@ -362,12 +361,12 @@ class PiicoDev_RFID(object):
             #now check again if uid[0] is 0x88
             if uid[0] == 0x88 :
                 valid_uid.extend(uid[1:4])
-                (status , uid) = self.anticoll(self.PICC_ANTICOLL3)
+                (status , uid) = self.anticoll(_TAG_CMD_ANTCOL3)
                 #print("Select Tag 3:",self.tohexstring(uid))
                 if status != self.OK:
                     return (self.ERR,[])
                 if self.DEBUG: print("Anticol(3) {}".format(uid))
-                if self.MFRC522_PcdSelect(uid,self.PICC_ANTICOLL3) == 0:
+                if self.MFRC522_PcdSelect(uid,_TAG_CMD_ANTCOL3) == 0:
                     return (self.ERR,[])
                 if self.DEBUG: print("PcdSelect(3) {}".format(uid))
         valid_uid.extend(uid[0:5])
@@ -376,25 +375,6 @@ class PiicoDev_RFID(object):
         
         return (self.OK , valid_uid[:len(valid_uid)-1])
         #return (self.OK , valid_uid)
-    
-#     def anticoll(self,anticolN):
-# 
-#         ser_chk = 0
-#         ser = [anticolN, 0x20]
-# 
-#         self._wreg(0x0D, 0x00)
-#         (stat, recv, bits) = self._tocard(0x0C, ser)
-# 
-#         if stat == self.OK:
-#             if len(recv) == 5:
-#                 for i in range(4):
-#                     ser_chk = ser_chk ^ recv[i]
-#                 if ser_chk != recv[4]:
-#                     stat = self.ERR
-#             else:
-#                 stat = self.ERR
-# 
-#         return stat, recv
     
     def PcdSelect(self, serNum,anticolN):
         backData = []
@@ -416,3 +396,17 @@ class PiicoDev_RFID(object):
             return  1
         else:
             return 0
+        
+    def detectTag(self):
+        (stat, type) = self.request(_TAG_CMD_REQIDL)
+        _present = False
+        if stat is self.OK:
+            _present = True
+        return {'present':_present, 'type':type}
+
+    def readTagID(self):
+        (stat, id) = self.anticoll()
+        _success = True
+        if stat is self.OK:
+            _success = True
+        return {'success':_success, 'id':id}

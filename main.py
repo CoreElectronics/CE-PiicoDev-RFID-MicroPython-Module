@@ -1,4 +1,4 @@
-# PiicoDev MFRC522 minimal example code
+# PiicoDev RFID minimal example code
 
 from PiicoDev_RFID import *
 from PiicoDev_Buzzer import *
@@ -8,20 +8,10 @@ from PiicoDev_Buzzer import *
 scanner = PiicoDev_RFID()
 buzzer = PiicoDev_Buzzer()
 #reader = PiicoDev_MFRC522
-
-    # Read and print light data
-
-
-print("")
-print("Place card before reader to read from address 0x08")
-print("")
-
-#scanner.init()
-
-
+print('Begin')
+import struct
 
 def readRFID():
-     
     PreviousCard=[0]
     
     print(PreviousCard)
@@ -47,10 +37,6 @@ def readRFID():
             pass
     else:
         PreviousCard=[0]
-
-
-#try:
-
 
 def do_write():
 
@@ -81,7 +67,7 @@ def do_write():
                             pet_name = 'Sophie          '
                             if len(pet_name) > 16:
                                 pet_name = pet_name_byte_array[:16]
-                            pet_name_encoded = pet_name.encode()
+                            pet_name_encoded = pet_name.encode() # returns bytes
                             print('Pet Name:')
                             print(pet_name_encoded)
                             #pet_name_byte_array = bytearray(pet_name_encoded)
@@ -105,11 +91,61 @@ def do_write():
         print("Bye")        
 
 
+def do_write_struct():
+
+    print('Place card before reader to write address 0x08')
+    try:
+        while True:
+
+            (stat, tag_type) = scanner.request(scanner.REQIDL)
+
+            if stat == scanner.OK:
+                print('scanner is ok')
+                (stat, raw_uid) = scanner.anticoll()
+
+                if stat == scanner.OK:
+                    print("New card detected")
+                    print("  - tag type: 0x%02x" % tag_type)
+                    print("  - uid	 : 0x%02x%02x%02x%02x" % (raw_uid[0], raw_uid[1], raw_uid[2], raw_uid[3]))
+                    print("")
+
+                    if scanner.select_tag(raw_uid) == scanner.OK:
+
+                        key = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]
+
+                        if scanner.auth(scanner.AUTHENT1A, 8, key, raw_uid) == scanner.OK:
+                            pet_name = 'Sophie1          '
+                            if len(pet_name) > 16:
+                                pet_name = pet_name[:16]
+                            pet_name_encoded = pet_name.encode()
+                            print('Pet Name:')
+                            print(pet_name_encoded)
+                            #pet_name_byte_array = bytearray(pet_name_encoded)
+                            
+                            #stat = scanner.write(8, b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0e")
+                            
+                            pet_name_byte_array = [ord(x) for x in list(pet_name)]
+                            print(pet_name_byte_array)
+                            pet_name_struct = struct.pack('s', pet_name)
+                            print(pet_name_struct)
+                            
+                            stat = scanner.write(8, pet_name_ustruct)
+                            scanner.stop_crypto1()
+                            if stat == scanner.OK:
+                                print("Data written to card")
+                            else:
+                                print("Failed to write data to card")
+                        else:
+                            print("Authentication error")
+                    else:
+                        print("Failed to select tag")
+
+    except KeyboardInterrupt:
+        print("Bye")    
+
 def do_read():
 
-    print("")
-    print("Place card before reader to read from address 0x08")
-    print("")
+    print("Place card before reader")
 
     try:
         while True:
@@ -152,7 +188,9 @@ readRFID()
 #scanner.write(0x08, 8)
 while True:
     #readRFID()
-    #do_write()
+    
+    
+    do_write_struct()
     do_read()
     print(scanner.read(0x08))
     
