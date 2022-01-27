@@ -16,9 +16,9 @@ while True:
         tag_id = read_tag_id_result['id_formatted']
  
         if tag_success:
-            tag_text = rfid.readTagData(register, 'text')
+            tag_text = rfid.readTagData(register, 'ints', 'NTAG2xx')
             print("ID: ", end=''); print(tag_id)
-            print('Text in register ', end=''); print(register, end=''); print(': ', end=''); print(tag_text)
+            print('Data in register ', end=''); print(register, end=''); print(': ', end=''); print(tag_text)
             print()
             sleep_ms(1000)
     sleep_ms(10)
