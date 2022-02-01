@@ -1,10 +1,11 @@
-_G='Failed to select tag'
-_F='Authentication error'
+_H='Authentication error'
+_G='made it here1 {}'
+_F='Failed to select tag'
 _E='made it here {}'
 _D=False
 _C='NTAG2xx'
-_B=None
-_A=True
+_B=True
+_A=None
 from PiicoDev_Unified import *
 compat_str='\nUnified PiicoDev library out of date.  Get the latest module: https://piico.dev/unified \n'
 _I2C_ADDRESS=44
@@ -49,8 +50,8 @@ def _writeBit(x,n,b):
 	else:return _setBit(x,n)
 def _writeCrumb(x,n,c):x=_writeBit(x,n,_readBit(c,0));return _writeBit(x,n+1,_readBit(c,1))
 class PiicoDev_RFID:
-	DEBUG=_A;OK=10;NOTAGERR=31;ERR=42;AUTHENT1A=96;AUTHENT1B=97
-	def __init__(self,bus=_B,freq=_B,sda=_B,scl=_B,addr=_I2C_ADDRESS):
+	DEBUG=_D;OK=10;NOTAGERR=31;ERR=42;AUTHENT1A=96;AUTHENT1B=97
+	def __init__(self,bus=_A,freq=_A,sda=_A,scl=_A,addr=_I2C_ADDRESS):
 		try:
 			if compat_ind>=1:0
 			else:print(compat_str)
@@ -70,7 +71,7 @@ class PiicoDev_RFID:
 		self._wreg(_REG_COMMAND,cmd)
 		if cmd==_CMD_TRANCEIVE:self._sflags(_REG_BIT_FRAMING,128)
 		i=20000
-		while _A:
+		while _B:
 			n=self._rreg(_REG_COM_IRQ);i-=1
 			if n&wait_irq:break
 			if n&1:break
@@ -93,13 +94,13 @@ class PiicoDev_RFID:
 		self._wreg(_REG_COMMAND,_CMD_IDLE);self._cflags(_REG_DIV_IRQ,4);self._sflags(_REG_FIFO_LEVEL,128)
 		for c in data:self._wreg(_REG_FIFO_DATA,c)
 		self._wreg(_REG_COMMAND,_CMD_CALC_CRC);i=255
-		while _A:
+		while _B:
 			n=self._rreg(_REG_DIV_IRQ);i-=1
 			if not(i!=0 and not n&4):break
 		self._wreg(_REG_COMMAND,_CMD_IDLE);return[self._rreg(_REG_CRC_RESULT_LSB),self._rreg(_REG_CRC_RESULT_MSB)]
 	def init(self):self.reset();sleep_ms(50);self._wreg(_REG_T_MODE,128);self._wreg(_REG_T_PRESCALER,169);self._wreg(_REG_T_RELOAD_HI,3);self._wreg(_REG_T_RELOAD_LO,232);self._wreg(_REG_TX_ASK,64);self._wreg(_REG_MODE,61);self.antenna_on()
 	def reset(self):self._wreg(_REG_COMMAND,_CMD_SOFT_RESET)
-	def antenna_on(self,on=_A):
+	def antenna_on(self,on=_B):
 		if on and~(self._rreg(_REG_TX_CONTROL)&3):self._sflags(_REG_TX_CONTROL,131)
 		else:self._cflags(_REG_TX_CONTROL,b'\x03')
 	def request(self,mode):
@@ -117,7 +118,7 @@ class PiicoDev_RFID:
 	def select_tag(self,ser):buf=[147,112]+ser[:5];buf+=self._crc(buf);stat,recv,bits=self._tocard(_CMD_TRANCEIVE,buf);return self.OK if stat==self.OK and bits==24 else self.ERR
 	def auth(self,mode,addr,sect,ser):return self._tocard(_CMD_MF_AUTHENT,[mode,addr]+sect+ser[:4])[0]
 	def stop_crypto1(self):self._cflags(_REG_STATUS_2,8)
-	def read(self,addr):print('reading card');print(addr);data=[48,addr];data+=self._crc(data);print(data);stat,recv,_=self._tocard(_CMD_TRANCEIVE,data);print(stat);print(recv);return recv if stat==self.OK else _B
+	def read(self,addr):print('reading card');print(addr);data=[48,addr];data+=self._crc(data);print(data);stat,recv,_=self._tocard(_CMD_TRANCEIVE,data);print(stat);print(recv);return recv if stat==self.OK else _A
 	def classicWrite(self,addr,data,tag_chip):
 		if tag_chip is _C:
 			print('Chip is NTAG');buf=[162,addr];buf+=data;buf+=self._crc(buf);print('buf');print(buf);stat,recv,bits=self._tocard(_CMD_TRANCEIVE,buf);print(stat);print(recv);print(bits)
@@ -158,11 +159,11 @@ class PiicoDev_RFID:
 		else:return 0
 	def detectTag(self):
 		stat,ATQA=self.request(_TAG_CMD_REQIDL);_present=_D
-		if stat is self.OK:_present=_A
+		if stat is self.OK:_present=_B
 		return{'present':_present,'ATQA':ATQA}
 	def readTagID(self):
-		stat,id=self.SelectTagSN();_success=_A
-		if stat is self.OK:_success=_A
+		stat,id=self.SelectTagSN();_success=_B
+		if stat is self.OK:_success=_B
 		id_formatted=''
 		for i in range(0,len(id)):
 			if i>0:id_formatted=id_formatted+':'
@@ -170,8 +171,8 @@ class PiicoDev_RFID:
 			id_formatted=id_formatted+hex(id[i])[2:]
 		return{'success':_success,'id_integers':id,'id_formatted':id_formatted.upper()}
 	def readTagData(self,register,data_type,tag_chip):
-		tag_data=_B;auth_result=0
-		while tag_data is _B:
+		tag_data=_A;auth_result=0
+		while tag_data is _A:
 			stat,tag_type=self.request(_TAG_CMD_REQIDL)
 			if stat==self.OK:
 				stat,raw_uid=self.anticoll()
@@ -181,16 +182,33 @@ class PiicoDev_RFID:
 						if auth_result==self.OK or tag_chip==_C:
 							if self.DEBUG:print(_E.format(self.OK))
 							raw_data=self.read(register)
-							if raw_data is not _B:
-								if self.DEBUG:print('made it here1 {}'.format(self.OK))
+							if raw_data is not _A:
+								if self.DEBUG:print(_G.format(self.OK))
 								if data_type is'text':tag_data=''.join((chr(x)for x in raw_data))
 								if data_type is'ints':tag_data=raw_data
 							self.stop_crypto1();return tag_data
-						else:print(_F)
-					else:print(_G)
+						else:print(_H)
+					else:print(_F)
+			sleep_ms(10)
+	def readNTAG213Data(self,page,data_type,tag_chip):
+		tag_data=_A;auth_result=0
+		while tag_data is _A:
+			stat,tag_type=self.request(_TAG_CMD_REQIDL)
+			if stat==self.OK:
+				stat,raw_uid=self.anticoll()
+				if stat==self.OK:
+					if self.select_tag(raw_uid)==self.OK:
+						if self.DEBUG:print(_E.format(self.OK))
+						raw_data=self.read(page)
+						if raw_data is not _A:
+							if self.DEBUG:print(_G.format(self.OK))
+							if data_type is'text':tag_data=''.join((chr(x)for x in raw_data))
+							if data_type is'ints':tag_data=raw_data
+						return tag_data
+					else:print(_F)
 			sleep_ms(10)
 	def writeTagData(self,data,register,tag_chip):
-		while _A:
+		while _B:
 			auth_result=0;stat,tag_type=self.request(_TAG_CMD_REQIDL)
 			if stat==self.OK:
 				stat,raw_uid=self.anticoll()
@@ -207,7 +225,7 @@ class PiicoDev_RFID:
 								data_byte_array=[ord(x)for x in list(data)];print('data_byte_array:');data_byte_array=[9,9,9,9];print(data_byte_array)
 							stat=self.nTAG2xxWrite(register,data_byte_array)
 							if tag_chip is not _C:self.stop_crypto1()
-							if stat==self.OK:return _A
+							if stat==self.OK:return _B
 							else:print('Failed to write data to tag');return _D
-						else:print(_F);return _D
-					else:print(_G);return _D
+						else:print(_H);return _D
+					else:print(_F);return _D
