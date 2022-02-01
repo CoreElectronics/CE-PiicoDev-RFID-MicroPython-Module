@@ -94,7 +94,7 @@ def _writeCrumb(x, n, c):
 
 
 class PiicoDev_RFID(object):
-    DEBUG = True
+    DEBUG = False
     OK = 10   # Can put any number here - not used for communicating past this program
     NOTAGERR = 31  # Can put any number here - not used for communicating past this program
     ERR = 42 # Can put any number here - not used for communicating past this program
@@ -513,6 +513,29 @@ class PiicoDev_RFID(object):
                         print("Failed to select tag")
             sleep_ms(10)
             
+    def readNTAG213Data(self, page, data_type, tag_chip):
+        tag_data = None
+        auth_result = 0
+        while tag_data is None:
+            (stat, tag_type) = self.request(_TAG_CMD_REQIDL)
+            if stat == self.OK:
+                (stat, raw_uid) = self.anticoll()
+                if stat == self.OK:
+                    if self.select_tag(raw_uid) == self.OK:
+                        if self.DEBUG: print("made it here {}".format(self.OK))
+                        raw_data = self.read(page)
+                        if raw_data is not None:
+                            if self.DEBUG: print("made it here1 {}".format(self.OK))
+                            if data_type is 'text':
+                                tag_data = "".join(chr(x) for x in raw_data)
+                            if data_type is 'ints':
+                                tag_data = raw_data
+                        return tag_data
+                    else:
+                        print("Failed to select tag")
+            sleep_ms(10)        
+    
+    
     def writeTagData(self, data, register, tag_chip):
         while True:
             auth_result = 0
