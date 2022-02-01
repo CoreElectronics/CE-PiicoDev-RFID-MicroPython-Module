@@ -17,9 +17,13 @@ while True:
         read_tag_id_result = rfid.readTagID()
         tag_success = read_tag_id_result['success']
         tag_id = read_tag_id_result['id_formatted']
+        print(tag_id)
  
         if tag_success:
-            tag_write_success = rfid.writeTagData(data, register, tag_chip)
+            data_byte_array = ([3, 4, 5, 6])
+            print(data_byte_array)
+            stat = rfid.nTAG2xxWrite(8, data_byte_array)
+            #tag_write_success = rfid.writeTagData(data, register, tag_chip)
             if tag_write_success is True:
                 tag_text= rfid.readTagData(register, 'text', tag_chip)
                 print("ID: ", end=''); print(tag_id)
