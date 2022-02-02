@@ -1,9 +1,8 @@
-_H='Authentication error'
-_G='made it here1 {}'
-_F='Failed to select tag'
-_E='made it here {}'
-_D=False
-_C='NTAG2xx'
+_G='Authentication error'
+_F='made it here1 {}'
+_E='Failed to select tag'
+_D='made it here {}'
+_C=False
 _B=True
 _A=None
 from PiicoDev_Unified import *
@@ -50,7 +49,7 @@ def _writeBit(x,n,b):
 	else:return _setBit(x,n)
 def _writeCrumb(x,n,c):x=_writeBit(x,n,_readBit(c,0));return _writeBit(x,n+1,_readBit(c,1))
 class PiicoDev_RFID:
-	DEBUG=_D;OK=10;NOTAGERR=31;ERR=42;AUTHENT1A=96;AUTHENT1B=97
+	DEBUG=_C;OK=10;NOTAGERR=31;ERR=42;AUTHENT1A=96;AUTHENT1B=97
 	def __init__(self,bus=_A,freq=_A,sda=_A,scl=_A,addr=_I2C_ADDRESS):
 		try:
 			if compat_ind>=1:0
@@ -119,20 +118,14 @@ class PiicoDev_RFID:
 	def auth(self,mode,addr,sect,ser):return self._tocard(_CMD_MF_AUTHENT,[mode,addr]+sect+ser[:4])[0]
 	def stop_crypto1(self):self._cflags(_REG_STATUS_2,8)
 	def read(self,addr):print('reading card');print(addr);data=[48,addr];data+=self._crc(data);print(data);stat,recv,_=self._tocard(_CMD_TRANCEIVE,data);print(stat);print(recv);return recv if stat==self.OK else _A
-	def classicWrite(self,addr,data,tag_chip):
-		if tag_chip is _C:
-			print('Chip is NTAG');buf=[162,addr];buf+=data;buf+=self._crc(buf);print('buf');print(buf);stat,recv,bits=self._tocard(_CMD_TRANCEIVE,buf);print(stat);print(recv);print(bits)
-			if not stat==self.OK or not bits==4 or not recv[0]&15==10:
-				stat=self.ERR;print('2nd Buffer');print(buf);stat,recv,bits=self._tocard(_CMD_TRANCEIVE,buf)
-				if not stat==self.OK or not bits==4 or not recv[0]&15==10:stat=self.ERR
+	def classicWrite(self,addr,data):
+		buf=[160,addr];print(buf);buf+=self._crc(buf);stat,recv,bits=self._tocard(_CMD_TRANCEIVE,buf)
+		if not stat==self.OK or not bits==4 or not recv[0]&15==10:stat=self.ERR
 		else:
-			buf=[160,addr];print(buf);buf+=self._crc(buf);stat,recv,bits=self._tocard(_CMD_TRANCEIVE,buf)
+			buf=[]
+			for i in range(16):buf.append(data[i])
+			buf+=self._crc(buf);stat,recv,bits=self._tocard(_CMD_TRANCEIVE,buf)
 			if not stat==self.OK or not bits==4 or not recv[0]&15==10:stat=self.ERR
-			else:
-				buf=[]
-				for i in range(16):buf.append(data[i])
-				buf+=self._crc(buf);stat,recv,bits=self._tocard(_CMD_TRANCEIVE,buf)
-				if not stat==self.OK or not bits==4 or not recv[0]&15==10:stat=self.ERR
 		return stat
 	def nTAG2xxWrite(self,page,data):buf=[162,page];buf+=data;buf+=self._crc(buf);print('buf');print(buf);stat,recv,bits=self._tocard(_CMD_TRANCEIVE,buf);print(stat);print(recv);print(bits);return stat
 	def SelfTest(self):self.reset();self._wreg(_REG_FIFO_DATA,bytes([25]));self._wreg(_REG_AUTO_TEST,9);self._wreg(_REG_FIFO_DATA,0);self._wreg(_REG_COMMAND,_CMD_CALC_CRC);sleep_ms(1000);test_output=self.i2c.readfrom_mem(self.addr,_REG_FIFO_DATA,64);version=self.i2c.readfrom_mem(self.addr,_REG_VERSION,1)
@@ -158,7 +151,7 @@ class PiicoDev_RFID:
 		if status==self.OK and backLen==24:return 1
 		else:return 0
 	def detectTag(self):
-		stat,ATQA=self.request(_TAG_CMD_REQIDL);_present=_D
+		stat,ATQA=self.request(_TAG_CMD_REQIDL);_present=_C
 		if stat is self.OK:_present=_B
 		return{'present':_present,'ATQA':ATQA}
 	def readTagID(self):
@@ -171,24 +164,24 @@ class PiicoDev_RFID:
 			id_formatted=id_formatted+hex(id[i])[2:]
 		return{'success':_success,'id_integers':id,'id_formatted':id_formatted.upper()}
 	def readTagData(self,register,data_type,tag_chip):
-		tag_data=_A;auth_result=0
+		A='NTAG2xx';tag_data=_A;auth_result=0
 		while tag_data is _A:
 			stat,tag_type=self.request(_TAG_CMD_REQIDL)
 			if stat==self.OK:
 				stat,raw_uid=self.anticoll()
 				if stat==self.OK:
 					if self.select_tag(raw_uid)==self.OK:
-						if tag_chip is not _C:key=[255,255,255,255,255,255];auth_result=self.auth(self.AUTHENT1A,register,key,raw_uid)
-						if auth_result==self.OK or tag_chip==_C:
-							if self.DEBUG:print(_E.format(self.OK))
+						if tag_chip is not A:key=[255,255,255,255,255,255];auth_result=self.auth(self.AUTHENT1A,register,key,raw_uid)
+						if auth_result==self.OK or tag_chip==A:
+							if self.DEBUG:print(_D.format(self.OK))
 							raw_data=self.read(register)
 							if raw_data is not _A:
-								if self.DEBUG:print(_G.format(self.OK))
+								if self.DEBUG:print(_F.format(self.OK))
 								if data_type is'text':tag_data=''.join((chr(x)for x in raw_data))
 								if data_type is'ints':tag_data=raw_data
 							self.stop_crypto1();return tag_data
-						else:print(_H)
-					else:print(_F)
+						else:print(_G)
+					else:print(_E)
 			sleep_ms(10)
 	def readNTAG213Data(self,page,data_type,tag_chip):
 		tag_data=_A;auth_result=0
@@ -198,34 +191,27 @@ class PiicoDev_RFID:
 				stat,raw_uid=self.anticoll()
 				if stat==self.OK:
 					if self.select_tag(raw_uid)==self.OK:
-						if self.DEBUG:print(_E.format(self.OK))
+						if self.DEBUG:print(_D.format(self.OK))
 						raw_data=self.read(page)
 						if raw_data is not _A:
-							if self.DEBUG:print(_G.format(self.OK))
+							if self.DEBUG:print(_F.format(self.OK))
 							if data_type is'text':tag_data=''.join((chr(x)for x in raw_data))
 							if data_type is'ints':tag_data=raw_data
 						return tag_data
-					else:print(_F)
+					else:print(_E)
 			sleep_ms(10)
-	def writeTagData(self,data,register,tag_chip):
+	def writeTagDataNonNTAG(self,register,data_byte_array):
 		while _B:
 			auth_result=0;stat,tag_type=self.request(_TAG_CMD_REQIDL)
 			if stat==self.OK:
 				stat,raw_uid=self.anticoll()
 				if stat==self.OK:
 					if self.select_tag(raw_uid)==self.OK:
-						if tag_chip is not _C:key=[255,255,255,255,255,255];auth_result=self.auth(self.AUTHENT1A,8,key,raw_uid)
-						if auth_result==self.OK or tag_chip==_C:
-							if self.DEBUG:print(_E.format(self.OK))
-							if type(data)is str:
-								buffer_size=16
-								if tag_chip is _C:buffer_size=4
-								if len(data)>buffer_size:data=data[:buffer_size]
-								while len(data)<buffer_size:data=data+' '
-								data_byte_array=[ord(x)for x in list(data)];print('data_byte_array:');data_byte_array=[9,9,9,9];print(data_byte_array)
-							stat=self.nTAG2xxWrite(register,data_byte_array)
-							if tag_chip is not _C:self.stop_crypto1()
+						key=[255,255,255,255,255,255];auth_result=self.auth(self.AUTHENT1A,register,key,raw_uid)
+						if auth_result==self.OK:
+							if self.DEBUG:print(_D.format(self.OK))
+							stat=self.classicWrite(register,data_byte_array);self.stop_crypto1()
 							if stat==self.OK:return _B
-							else:print('Failed to write data to tag');return _D
-						else:print(_H);return _D
-					else:print(_F);return _D
+							else:print('Failed to write data to tag');return _C
+						else:print(_G);return _C
+					else:print(_E);return _C
