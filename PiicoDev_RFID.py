@@ -322,42 +322,22 @@ class PiicoDev_RFID(object):
         print(recv)
         return recv if stat == self.OK else None
 
-    def classicWrite(self, addr, data, tag_chip):
-        if tag_chip is 'NTAG2xx':
-            print('Chip is NTAG')
-            buf = [0xA2, addr]
-            buf += data
-            buf += self._crc(buf)
-            print('buf')
-            print(buf)
-            (stat, recv, bits) = self._tocard(_CMD_TRANCEIVE, buf)
-            print(stat)
-            print(recv)
-            print(bits)
-            if not (stat == self.OK) or not (bits == 4) or not ((recv[0] & 0x0F) == 0x0A):
-                stat = self.ERR
-            #else:
-                print('2nd Buffer')
-                print(buf)
-                (stat, recv, bits) = self._tocard(_CMD_TRANCEIVE, buf)
-                if not (stat == self.OK) or not (bits == 4) or not ((recv[0] & 0x0F) == 0x0A):
-                    stat = self.ERR
+    def classicWrite(self, addr, data):
+        buf = [0xA0, addr]
+        print(buf)
+        buf += self._crc(buf)
+        (stat, recv, bits) = self._tocard(_CMD_TRANCEIVE, buf)
+        if not (stat == self.OK) or not (bits == 4) or not ((recv[0] & 0x0F) == 0x0A):
+            stat = self.ERR
         else:
-            buf = [0xA0, addr]
-            print(buf)
+            buf = []
+            for i in range(16):
+                buf.append(data[i])
             buf += self._crc(buf)
             (stat, recv, bits) = self._tocard(_CMD_TRANCEIVE, buf)
             if not (stat == self.OK) or not (bits == 4) or not ((recv[0] & 0x0F) == 0x0A):
                 stat = self.ERR
-            else:
-                buf = []
-                for i in range(16):
-                    buf.append(data[i])
-                buf += self._crc(buf)
-                (stat, recv, bits) = self._tocard(_CMD_TRANCEIVE, buf)
-                if not (stat == self.OK) or not (bits == 4) or not ((recv[0] & 0x0F) == 0x0A):
-                    stat = self.ERR
-                
+            
 #             if not (stat == self.OK) or not (bits == 4) or not ((recv[0] & 0x0F) == 0x0A):
 #                 stat = self.ERR
 #             else:
@@ -536,40 +516,23 @@ class PiicoDev_RFID(object):
             sleep_ms(10)        
     
     
-    def writeTagData(self, data, register, tag_chip):
+    def writeTagDataNonNTAG(self, register, data_byte_array):
         while True:
             auth_result = 0
             (stat, tag_type) = self.request(_TAG_CMD_REQIDL)
 
             if stat == self.OK:
-                #(stat, raw_uid) = self.SelectTagSN()
                 (stat, raw_uid) = self.anticoll()
 
                 if stat == self.OK:
                     if self.select_tag(raw_uid) == self.OK:
 
-                        if tag_chip is not 'NTAG2xx':
-                            key = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]
-                            auth_result = self.auth(self.AUTHENT1A, 8, key, raw_uid)
-                        if (auth_result == self.OK) or tag_chip == 'NTAG2xx':
+                        key = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]
+                        auth_result = self.auth(self.AUTHENT1A, register, key, raw_uid)
+                        if (auth_result == self.OK):
                             if self.DEBUG: print("made it here {}".format(self.OK))
-                            if type(data) is str:
-                                buffer_size = 16
-                                if tag_chip is 'NTAG2xx':
-                                    buffer_size = 4
-                                if len(data) > buffer_size:
-                                    data = data[:buffer_size]
-                                while len(data) < buffer_size:
-                                    data = data + " "
-
-                                #data_encoded = data.encode()
-                                data_byte_array = [ord(x) for x in list(data)]
-                                print('data_byte_array:')
-                                data_byte_array = ([9, 9, 9, 9])
-                                print(data_byte_array)
-                            stat = self.nTAG2xxWrite(register, data_byte_array)
-                            if tag_chip is not 'NTAG2xx':
-                                self.stop_crypto1()
+                            stat = self.classicWrite(register, data_byte_array)
+                            self.stop_crypto1()
                             if stat == self.OK:
                                 return True # Data written to tag
                             else:
@@ -581,4 +544,5 @@ class PiicoDev_RFID(object):
                     else:
                         print("Failed to select tag")
                         return False
+
 

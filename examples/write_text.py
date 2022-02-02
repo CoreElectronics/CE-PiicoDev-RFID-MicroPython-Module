@@ -1,7 +1,7 @@
 from PiicoDev_RFID import *
 
 rfid = PiicoDev_RFID()
-page_adr_min = 4 # user memory is 4 to 39 for NTAG213 so that allows for 212 characters.  So that's 36 pages
+page_adr_min = 4 # user memory is 4 to 39 for NTAG213 so that allows for 144 characters.  So that's 36 pages
 page_adr_max = 39 # NTAG213
 maximum_characters = 144
 bytes_per_page = 4
