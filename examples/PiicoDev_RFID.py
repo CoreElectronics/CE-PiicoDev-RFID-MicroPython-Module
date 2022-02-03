@@ -102,8 +102,6 @@ class PiicoDev_RFID(object):
     AUTHENT1A = 0x60  #0110 0000
     AUTHENT1B = 0x61  #0110 0001
     
-
-
     def __init__(self, bus=None, freq=None, sda=None, scl=None, addr=_I2C_ADDRESS):
         try:
             if compat_ind >= 1:
@@ -312,19 +310,19 @@ class PiicoDev_RFID(object):
         #print('crypto off')
 
     def read(self, addr):
-        print('reading card')
-        print(addr)
+        #print('reading card')
+        #print(addr)
         data = [0x30, addr]
         data += self._crc(data)
-        print(data)
+        #print(data)
         (stat, recv, _) = self._tocard(_CMD_TRANCEIVE, data)
-        print(stat)
-        print(recv)
+        #print(stat)
+        #print(recv)
         return recv if stat == self.OK else None
 
     def classicWrite(self, addr, data):
         buf = [0xA0, addr]
-        print(buf)
+        #print(buf)
         buf += self._crc(buf)
         (stat, recv, bits) = self._tocard(_CMD_TRANCEIVE, buf)
         if not (stat == self.OK) or not (bits == 4) or not ((recv[0] & 0x0F) == 0x0A):
@@ -357,12 +355,12 @@ class PiicoDev_RFID(object):
         buf = [0xA2, page]
         buf += data
         buf += self._crc(buf)
-        print('buf')
-        print(buf)
+        #print('buf')
+        #print(buf)
         (stat, recv, bits) = self._tocard(_CMD_TRANCEIVE, buf)
-        print(stat)
-        print(recv)
-        print(bits)
+        #print(stat)
+        #print(recv)
+        #print(bits)
         return stat
 
     def SelfTest(self): # page 82
@@ -450,7 +448,7 @@ class PiicoDev_RFID(object):
             _present = True
         return {'present':_present, 'ATQA':ATQA}
 
-    def readTagID(self):
+    def _readTagID(self):
         (stat, id) = self.SelectTagSN()
         _success = True
         if stat is self.OK:
@@ -462,7 +460,10 @@ class PiicoDev_RFID(object):
             if id[i] < 16:
                 id_formatted = id_formatted + '0'
             id_formatted = id_formatted + hex(id[i])[2:]
-        return {'success':_success, 'id_integers':id, 'id_formatted':id_formatted.upper()}
+        type = 'ntag'
+        if len(id) == 4:
+            type = 'classic'
+        return {'success':_success, 'id_integers':id, 'id_formatted':id_formatted.upper(), 'type':type}
     
     def readTagData(self, register, data_type, tag_chip):
         tag_data = None
@@ -544,5 +545,139 @@ class PiicoDev_RFID(object):
                     else:
                         print("Failed to select tag")
                         return False
+    
+    def writeTextToNtag(self, text):
+        data = text
+        page_adr_min = 4 # user memory is 4 to 39 for NTAG213 so that allows for 144 characters.  So that's 36 pages
+        page_adr_max = 39 # NTAG213
+
+        bytes_per_page = 4
 
 
+        buffer_start = 0
+ 
+    
+        #stat = self.nTAG2xxWrite(40, [0, 0, 0, 0]) # Attempt to unlock the lock bytes
+        bytes_per_page = 4
+        page_adr = page_adr_min
+        while(page_adr <= page_adr_max):
+            data_chunk = data[buffer_start:buffer_start+bytes_per_page]
+            print('Data Chunk')
+            print(data_chunk)
+            buffer_start = buffer_start + bytes_per_page
+            #data_encoded = data.encode()
+            data_byte_array = [ord(x) for x in list(data_chunk)]
+            #print('data_byte_array:')
+            #print(data_byte_array)
+            #print('Data in page ', end=''); print(page_adr, end=''); print(': ', end=''); print(data_byte_array)
+            #data_byte_array = ([3, 4, 5, 6])
+            stat = self.nTAG2xxWrite(page_adr, data_byte_array)
+            tag_write_success = False
+            if stat == self.OK:
+                tag_write_success = True
+            #tag_write_success = self.writeTagData(data, register, tag_chip)
+            page_adr = page_adr + 1
+            #sleep_ms(10)
+        return tag_write_success
+
+    def readTextFromNtag(self):
+    
+        page_adr_min = 4 # user memory is 4 to 39 for NTAG213 so that allows for 144 characters.  So that's 36 pages
+        page_adr_max = 39 # NTAG213
+
+        bytes_per_page = 4
+        
+        
+            #print(tag_id)
+        buffer_start = 0
+
+  
+        bytes_per_page = 4
+        page_adr = page_adr_min
+        total_string = ''
+        while page_adr <= page_adr_max:
+            raw_data = self.read(page_adr)
+            page_text = "".join(chr(x) for x in raw_data)
+            #print("ID: ", end=''); print(tag_id)
+            #print('Text in pages ', end=''); print(page_adr, end=''); print('-', end=''); print(page_adr+3, end=''); print(': ', end=''); print(page_text)
+            total_string = total_string + page_text
+            #print()
+            page_adr = page_adr + bytes_per_page
+        #print('Text on tag: ', end=''); print(total_string)
+        return total_string
+
+
+    def writeTextToClassic(self, text):
+        data = text
+        adr_list = [1, 2, 4, 5, 6, 8, 9, 10, 12] #16
+        tag_chip = ''
+        buffer_start = 0
+        bytes_per_adr = 16
+        x = 0
+        for address in adr_list:
+            data_chunk = data[buffer_start:buffer_start+bytes_per_adr]
+            buffer_start = buffer_start + bytes_per_adr
+            print('Data Chunk')
+            print(data_chunk)
+            data_byte_array = [ord(x) for x in list(data_chunk)]
+            #print('data_byte_array:')
+            #print(data_byte_array)
+            tag_write_success = self.writeTagDataNonNTAG(address, data_byte_array)
+        return tag_write_success
+
+    def readTextFromClassic(self):
+        adr_list = [1, 2, 4, 5, 6, 8, 9, 10, 12] #16
+
+        tag_chip = ''
+
+            
+
+
+        buffer_start = 0
+        bytes_per_adr = 16
+        x = 0
+        total_string = ''
+        for address in adr_list:
+            reg_text= self.readTagData(address, 'text', tag_chip)
+            #print("ID: ", end=''); print(tag_id)
+            #print('Text in register ', end=''); print(address, end=''); print(': ', end=''); print(reg_text)
+            total_string = total_string + reg_text
+        return total_string
+            
+    def readTagID(self):
+        detect_tag_result = self.detectTag()
+        if detect_tag_result['present']:
+            read_tag_id_result = self._readTagID()
+            if read_tag_id_result['success']:
+                return {'success':read_tag_id_result['success'], 'id_integers':read_tag_id_result['id_integers'], 'id_formatted':read_tag_id_result['id_formatted'], 'type':read_tag_id_result['type']}
+        return {'success':False, 'id_integers':[0], 'id_formatted':'', 'type':''}
+    
+    def writeTextToTag(self, text):
+        success = False
+        maximum_characters = 144
+        while len(text) < maximum_characters:
+            text = text + " "
+        read_tag_id_result = self.readTagID()
+        #print(read_tag_id_result)
+        if read_tag_id_result['type'] == 'ntag':
+            print('Writing NTAG')
+            success = self.writeTextToNtag(text)
+        if read_tag_id_result['type'] == 'classic':
+            print('Writing Classic')
+            success = self.writeTextToClassic(text)
+        return success
+
+    def readTextFromTag(self):
+        text = ''
+        read_tag_id_result = self.readTagID()
+        while read_tag_id_result['success'] is False:
+            read_tag_id_result = self.readTagID()
+            print(read_tag_id_result)
+        if read_tag_id_result['type'] == 'ntag':
+            print('Reading NTAG')
+            text = self.readTextFromNtag()
+            
+        if read_tag_id_result['type'] == 'classic':
+            print('Reading Classic')
+            text = self.readTextFromClassic()
+        return text
