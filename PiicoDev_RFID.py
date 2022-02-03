@@ -6,6 +6,7 @@
 # https://stackoverflow.com/questions/4286447/how-to-calculate-the-crc-in-rfid-protocol
 
 from PiicoDev_Unified import *
+import struct
 
 compat_str = '\nUnified PiicoDev library out of date.  Get the latest module: https://piico.dev/unified \n'
 
@@ -64,34 +65,6 @@ def _writeBit(x, n, b):
 def _writeCrumb(x, n, c):
     x = _writeBit(x, n, _readBit(c, 0))
     return _writeBit(x, n+1, _readBit(c, 1))
-
-# def rfid_get_crc(data, size): #This function is not used
-#     lsb = False
-#     rxdt = False
-#     crc = 0
-#     bits = 0
-#     byte = 0
-#     i = 0
-#     RFID_CRC_INIT = 0x3791
-# 
-#     crc = RFID_CRC_INIT;
-#     for i in range(size):
-#         bits = 8;
-#         byte = data[i]; # Next byte
-#         while (bits > 0):
-#             bits = bits - 1
-#             lsb = crc & 1 # Store LSB
-#             crc >> 1  # Shift right 1 bit
-#             rxdt = byte & 1
-#             if (rxdt):
-#                 crc |= 0x8000; # Shift in next bit
-#             if (lsb): # Check stored LSB
-#                 crc ^= 0x8000 # Invert MSB
-#             if (0x8000 == (crc & 0x8000)): # Check MSB
-#                 crc ^= 0x0408 # Invert bits 3 and 10
-#             byte >>= 1 # Next bit
-#     return crc
-
 
 class PiicoDev_RFID(object):
     DEBUG = False
@@ -175,27 +148,18 @@ class PiicoDev_RFID(object):
         self._cflags(_REG_BIT_FRAMING, 0x80)
         
         if i:
-            #print('i is > 0')
-            #print(self._rreg(_REG_ERROR))
             if (self._rreg(_REG_ERROR) & 0x1B) == 0x00:
-                #print('ok')
                 stat = self.OK
 
                 if n & irq_en & 0x01:
                     stat = self.NOTAGERR
                 elif cmd == _CMD_TRANCEIVE:
                     n = self._rreg(_REG_FIFO_LEVEL)
-                    #print('_tocard FIFO level')
-                    #print(n)
                     lbits = self._rreg(_REG_CONTROL) & 0x07
-                    #print('_tocard L Bits')
-                    #print(lbits)
                     if lbits != 0:
                         bits = (n - 1) * 8 + lbits
                     else:
                         bits = n * 8
-                    #print('bits')
-                    #print(bits)
                     if n == 0:
                         n = 1
                     elif n > 16:
@@ -205,12 +169,6 @@ class PiicoDev_RFID(object):
                         recv.append(self._rreg(_REG_FIFO_DATA))
             else:
                 stat = self.ERR
-        #print('stat')
-        #print(stat)
-        #print('recv')
-        #print(recv)
-        #print('bits')
-        #print(bits)
         return stat, recv, bits
 
     def _crc(self, data):
@@ -253,24 +211,14 @@ class PiicoDev_RFID(object):
 
     def antenna_on(self, on=True):
         if on and ~(self._rreg(_REG_TX_CONTROL) & 0x03):
-            #print('antenna code here 1')
-            
             self._sflags(_REG_TX_CONTROL, 0x83)
-            #self._wreg(_REG_TX_CONTROL, 0x03)
         else:
-            #print('antenna code here 2')
             self._cflags(_REG_TX_CONTROL, b'\x03')
-        #print('antenna status')
-        #print(_REG_TX_CONTROL)
-        #print(self._rreg(_REG_TX_CONTROL))
               
     def request(self, mode):
         #print('Request Made')
         self._wreg(_REG_BIT_FRAMING, 0x07)
         (stat, recv, bits) = self._tocard(_CMD_TRANCEIVE, [mode])
-        #print(stat)
-        #print(recv)
-        #print(bits)
         if (stat != self.OK) | (bits != 0x10):
             stat = self.ERR
 
@@ -307,22 +255,15 @@ class PiicoDev_RFID(object):
 
     def stop_crypto1(self):
         self._cflags(_REG_STATUS_2, 0x08)
-        #print('crypto off')
 
     def read(self, addr):
-        #print('reading card')
-        #print(addr)
         data = [0x30, addr]
         data += self._crc(data)
-        #print(data)
         (stat, recv, _) = self._tocard(_CMD_TRANCEIVE, data)
-        #print(stat)
-        #print(recv)
         return recv if stat == self.OK else None
 
     def classicWrite(self, addr, data):
         buf = [0xA0, addr]
-        #print(buf)
         buf += self._crc(buf)
         (stat, recv, bits) = self._tocard(_CMD_TRANCEIVE, buf)
         if not (stat == self.OK) or not (bits == 4) or not ((recv[0] & 0x0F) == 0x0A):
@@ -335,20 +276,6 @@ class PiicoDev_RFID(object):
             (stat, recv, bits) = self._tocard(_CMD_TRANCEIVE, buf)
             if not (stat == self.OK) or not (bits == 4) or not ((recv[0] & 0x0F) == 0x0A):
                 stat = self.ERR
-            
-#             if not (stat == self.OK) or not (bits == 4) or not ((recv[0] & 0x0F) == 0x0A):
-#                 stat = self.ERR
-#             else:
-#                 buf = []
-#                 for i in range(16):
-#                     buf.append(data[i])
-#                     #print(i)
-#                 buf += self._crc(buf)
-#                 print(buf)
-#                 (stat, recv, bits) = self._tocard(_CMD_TRANCEIVE, buf)
-#                 if not (stat == self.OK) or not (bits == 4) or not ((recv[0] & 0x0F) == 0x0A):
-#                     stat = self.ERR
-
         return stat
 
     def nTAG2xxWrite(self, page, data):
@@ -383,25 +310,17 @@ class PiicoDev_RFID(object):
         if status != self.OK:
             return  (self.ERR,[])
         
-        #if self.DEBUG:   print("anticol(1) {}".format(uid))
         if self.PcdSelect(uid,_TAG_CMD_ANTCOL1) == 0:
             return (self.ERR,[])
-        #if self.DEBUG:   print("pcdSelect(1) {}".format(uid))
         
-        #check if first byte is 0x88
-        if uid[0] == 0x88 :
-            #ok we have another type of card
+        if uid[0] == 0x88 : # NTAG
             valid_uid.extend(uid[1:4])
             (status,uid)=self.anticoll(_TAG_CMD_ANTCOL2)
-            #print("Select Tag 2:",self.tohexstring(uid))
             if status != self.OK:
                 return (self.ERR,[])
-            #if self.DEBUG: print("Anticol(2) {}".format(uid))
             rtn =  self.PcdSelect(uid,_TAG_CMD_ANTCOL2)
-            #if self.DEBUG: print("pcdSelect(2) return={} uid={}".format(rtn,uid))
             if rtn == 0:
                 return (self.ERR,[])
-            #if self.DEBUG: print("PcdSelect2() {}".format(uid))
             #now check again if uid[0] is 0x88
             if uid[0] == 0x88 :
                 valid_uid.extend(uid[1:4])
@@ -418,20 +337,14 @@ class PiicoDev_RFID(object):
         # let's remove the last BYTE whic is the XOR sum
         
         return (self.OK , valid_uid[:len(valid_uid)-1])
-        #return (self.OK , valid_uid)
     
     def PcdSelect(self, serNum,anticolN):
         backData = []
         buf = []
         buf.append(anticolN)
         buf.append(0x70)
-        #i = 0
-        ###xorsum=0;
         for i in serNum:
             buf.append(i)
-        #while i<5:
-        #    buf.append(serNum[i])
-        #    i = i + 1
         pOut = self._crc(buf)
         buf.append(pOut[0])
         buf.append(pOut[1])
@@ -546,67 +459,76 @@ class PiicoDev_RFID(object):
                         print("Failed to select tag")
                         return False
     
-    def writeTextToNtag(self, text):
+    def writeTextToNtag(self, text): # NTAG213
         data = text
         page_adr_min = 4 # user memory is 4 to 39 for NTAG213 so that allows for 144 characters.  So that's 36 pages
-        page_adr_max = 39 # NTAG213
+        page_adr_max = 39
 
         bytes_per_page = 4
-
-
         buffer_start = 0
- 
-    
-        #stat = self.nTAG2xxWrite(40, [0, 0, 0, 0]) # Attempt to unlock the lock bytes
         bytes_per_page = 4
         page_adr = page_adr_min
         while(page_adr <= page_adr_max):
             data_chunk = data[buffer_start:buffer_start+bytes_per_page]
-            print('Data Chunk')
-            print(data_chunk)
             buffer_start = buffer_start + bytes_per_page
-            #data_encoded = data.encode()
             data_byte_array = [ord(x) for x in list(data_chunk)]
-            #print('data_byte_array:')
-            #print(data_byte_array)
-            #print('Data in page ', end=''); print(page_adr, end=''); print(': ', end=''); print(data_byte_array)
-            #data_byte_array = ([3, 4, 5, 6])
             stat = self.nTAG2xxWrite(page_adr, data_byte_array)
             tag_write_success = False
             if stat == self.OK:
                 tag_write_success = True
-            #tag_write_success = self.writeTagData(data, register, tag_chip)
             page_adr = page_adr + 1
-            #sleep_ms(10)
+        return tag_write_success
+    
+    def writeNumberToNtag(self, bytes_number):
+        data = bytes_number
+        page_adr_min = 4
+        page_adr_max = 4
+        bytes_per_page = 4
+        buffer_start = 0
+        bytes_per_page = 4
+        page_adr = page_adr_min
+        while(page_adr <= page_adr_max):
+            data_chunk = data[buffer_start:buffer_start+bytes_per_page]
+            buffer_start = buffer_start + bytes_per_page
+            data_byte_array = bytes_number
+            stat = self.nTAG2xxWrite(page_adr, data_byte_array)
+            tag_write_success = False
+            if stat == self.OK:
+                tag_write_success = True
+            page_adr = page_adr + 1
         return tag_write_success
 
     def readTextFromNtag(self):
-    
         page_adr_min = 4 # user memory is 4 to 39 for NTAG213 so that allows for 144 characters.  So that's 36 pages
         page_adr_max = 39 # NTAG213
-
         bytes_per_page = 4
-        
-        
-            #print(tag_id)
         buffer_start = 0
-
-  
         bytes_per_page = 4
         page_adr = page_adr_min
         total_string = ''
         while page_adr <= page_adr_max:
             raw_data = self.read(page_adr)
             page_text = "".join(chr(x) for x in raw_data)
-            #print("ID: ", end=''); print(tag_id)
-            #print('Text in pages ', end=''); print(page_adr, end=''); print('-', end=''); print(page_adr+3, end=''); print(': ', end=''); print(page_text)
             total_string = total_string + page_text
-            #print()
             page_adr = page_adr + bytes_per_page
-        #print('Text on tag: ', end=''); print(total_string)
         return total_string
 
-
+    def readNumberFromNtag(self):
+        page_adr = 4
+        raw_data = self.read(page_adr)
+        return raw_data
+    
+    def readNumberFromClassic(self):
+        adr_list = [1] #16
+        tag_chip = ''
+        buffer_start = 0
+        bytes_per_adr = 16
+        x = 0
+        total_string = ''
+        for address in adr_list:
+            raw_data = self.readTagData(address, 'ints', tag_chip)
+        return raw_data
+    
     def writeTextToClassic(self, text):
         data = text
         adr_list = [1, 2, 4, 5, 6, 8, 9, 10, 12] #16
@@ -617,35 +539,41 @@ class PiicoDev_RFID(object):
         for address in adr_list:
             data_chunk = data[buffer_start:buffer_start+bytes_per_adr]
             buffer_start = buffer_start + bytes_per_adr
-            print('Data Chunk')
-            print(data_chunk)
             data_byte_array = [ord(x) for x in list(data_chunk)]
-            #print('data_byte_array:')
-            #print(data_byte_array)
+            tag_write_success = self.writeTagDataNonNTAG(address, data_byte_array)
+        return tag_write_success
+    
+    def writeNumberToClassic(self, bytes_number):
+        while len(bytes_number) < 16:
+            bytes_number.append(0)
+        adr_list = [1] #16
+        tag_chip = ''
+        buffer_start = 0
+        bytes_per_adr = 16
+        x = 0
+        for address in adr_list:
+            data_chunk = bytes_number[buffer_start:buffer_start+bytes_per_adr]
+            buffer_start = buffer_start + bytes_per_adr
+            data_byte_array = bytes_number
             tag_write_success = self.writeTagDataNonNTAG(address, data_byte_array)
         return tag_write_success
 
     def readTextFromClassic(self):
         adr_list = [1, 2, 4, 5, 6, 8, 9, 10, 12] #16
-
         tag_chip = ''
-
-            
-
-
         buffer_start = 0
         bytes_per_adr = 16
         x = 0
         total_string = ''
         for address in adr_list:
             reg_text= self.readTagData(address, 'text', tag_chip)
-            #print("ID: ", end=''); print(tag_id)
-            #print('Text in register ', end=''); print(address, end=''); print(': ', end=''); print(reg_text)
             total_string = total_string + reg_text
         return total_string
             
     def readTagID(self):
         detect_tag_result = self.detectTag()
+        if detect_tag_result['present'] is False: #Try again, the card may not be in the correct state
+            detect_tag_result = self.detectTag()
         if detect_tag_result['present']:
             read_tag_id_result = self._readTagID()
             if read_tag_id_result['success']:
@@ -658,15 +586,29 @@ class PiicoDev_RFID(object):
         while len(text) < maximum_characters:
             text = text + " "
         read_tag_id_result = self.readTagID()
-        #print(read_tag_id_result)
         if read_tag_id_result['type'] == 'ntag':
-            print('Writing NTAG')
             success = self.writeTextToNtag(text)
         if read_tag_id_result['type'] == 'classic':
-            print('Writing Classic')
             success = self.writeTextToClassic(text)
         return success
 
+    def writeNumberToTag(self, number):
+        success = False
+        bytearray_number = bytearray(struct.pack('l', number))
+        read_tag_id_result = self.readTagID()
+        while read_tag_id_result['success'] is False:
+            read_tag_id_result = self.readTagID()
+        if read_tag_id_result['success']:
+            if read_tag_id_result['type'] == 'ntag':
+                success = self.writeNumberToNtag(bytearray_number)
+                while success is False:
+                    success = self.writeNumberToNtag(bytearray_number)
+            if read_tag_id_result['type'] == 'classic':
+                success = self.writeNumberToClassic(bytearray_number)
+                while success is False:
+                    success = self.writeNumberToClassic(bytearray_number)
+        return success
+    
     def readTextFromTag(self):
         text = ''
         read_tag_id_result = self.readTagID()
@@ -674,10 +616,26 @@ class PiicoDev_RFID(object):
             read_tag_id_result = self.readTagID()
             print(read_tag_id_result)
         if read_tag_id_result['type'] == 'ntag':
-            print('Reading NTAG')
             text = self.readTextFromNtag()
-            
         if read_tag_id_result['type'] == 'classic':
-            print('Reading Classic')
             text = self.readTextFromClassic()
         return text
+    
+    def readNumberFromTag(self):
+        bytearray_number = None
+        read_tag_id_result = self.readTagID()
+        while read_tag_id_result['success'] is False:
+            read_tag_id_result = self.readTagID()
+        if read_tag_id_result['type'] == 'ntag':
+            bytearray_number = self.readNumberFromNtag()
+        if read_tag_id_result['type'] == 'classic':
+            bytearray_number = self.readNumberFromClassic()
+        try:
+            number = struct.unpack('l', bytes(bytearray_number))
+            number = number[0]
+            return number
+        except:
+            print('Error reading card')
+            return 0
+
+        
