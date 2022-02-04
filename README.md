@@ -11,6 +11,8 @@ This module depends on the [PiicoDev Unified Library](https://github.com/CoreEle
 -->
 
 # Usage
+## Compatibility
+This is compatible with NTAG213 and Classic tags.
 ## Example
 [read_id.py](https://github.com/CoreElectronics/CE-PiicoDev-RFID-MicroPython-Module/blob/main/examples/read_id.py) is a simple example to get started.
 ```
@@ -39,12 +41,16 @@ bus | int | 0,1 | Raspberry Pi Pico: 0, Raspberry Pi: 1 | I2C Bus.  Ignored on M
 freq | int | 100-1000000 | Device dependent | I2C Bus frequency (Hz).  Ignored on Raspberry Pi
 sda | Pin | Device Dependent | Device Dependent | I2C SDA Pin. Implemented on Raspberry Pi Pico only
 scl | Pin | Device Dependent | Device Dependent | I2C SCL Pin. Implemented on Raspberry Pi Pico only
-addr | int | 0x2C, 0x2D, 0x2E, 0x2F | 0x2C | This address needs to match the PiicoDev RFID ASW switches:<br>[OFF:OFF] 0x2C<br>[ON :OFF] 0x2D<br>[OFF:ON ] = 0x2E<br>[ON :ON ] 0x2F
+addr | int | 0x2C, 0x2D, 0x2E, 0x2F | 0x2C | This address needs to match the PiicoDev RFID Module ASW microswitches:<br>[OFF:OFF] 0x2C<br>[ON :OFF] 0x2D<br>[OFF:ON ] 0x2E<br>[ON :ON ] 0x2F
 
-### PiicoDev_VEML6030.read()
-Parameter | Type | Unit | Description
+### PiicoDev_RFID.readTagID()
+Parameter | Type | Range | Description
 --- | --- | --- | ---
-returned | float | lux | Ambient light
+Returns | Dictionary |
+id_integers | int list | 0-255
+id_formatted | str | length 11 or 20
+type | str | 'ntag' or 'classic'
+success | bool |
 
 ### PiicoDev_VEML6030.setGain(gain)
 Parameter | Type | Range | Description
