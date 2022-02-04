@@ -5,8 +5,8 @@ _M='ints'
 _L='text'
 _K='made it here {}'
 _J='present'
-_I='id_formatted'
-_H='id_integers'
+_I='id_integers'
+_H='id_formatted'
 _G='classic'
 _F='ntag'
 _E='success'
@@ -65,7 +65,7 @@ class PiicoDev_RFID:
 			if compat_ind>=1:0
 			else:print(compat_str)
 		except:print(compat_str)
-		self.i2c=create_unified_i2c(bus=bus,freq=freq,sda=sda,scl=scl);self.addr=addr;self.init()
+		self.i2c=create_unified_i2c(bus=bus,freq=freq,sda=sda,scl=scl);self.addr=addr;self._tag_present=_A;self._read_tag_id_success=_A;self.init()
 	def _wreg(self,reg,val):self.i2c.writeto_mem(self.addr,reg,bytes([val]))
 	def _wfifo(self,reg,val):self.i2c.writeto_mem(self.addr,reg,bytes(val))
 	def _rreg(self,reg):val=self.i2c.readfrom_mem(self.addr,reg,1);return val[0]
@@ -163,7 +163,7 @@ class PiicoDev_RFID:
 	def detectTag(self):
 		stat,ATQA=self.request(_TAG_CMD_REQIDL);_present=_A
 		if stat is self.OK:_present=_D
-		return{_J:_present,'ATQA':ATQA}
+		self._tag_present=_present;return{_J:_present,'ATQA':ATQA}
 	def _readTagID(self):
 		stat,id=self.SelectTagSN();_success=_D
 		if stat is self.OK:_success=_D
@@ -174,7 +174,7 @@ class PiicoDev_RFID:
 			id_formatted=id_formatted+hex(id[i])[2:]
 		type=_F
 		if len(id)==4:type=_G
-		return{_E:_success,_H:id,_I:id_formatted.upper(),_C:type}
+		return{_E:_success,_I:id,_H:id_formatted.upper(),_C:type}
 	def readTagData(self,register,data_type,tag_chip):
 		A='NTAG2xx';tag_data=_B;auth_result=0
 		while tag_data is _B:
@@ -245,11 +245,6 @@ class PiicoDev_RFID:
 		page_adr_min=4;page_adr_max=39;bytes_per_page=4;buffer_start=0;bytes_per_page=4;page_adr=page_adr_min;total_string=''
 		while page_adr<=page_adr_max:raw_data=self.read(page_adr);page_text=''.join((chr(x)for x in raw_data));total_string=total_string+page_text;page_adr=page_adr+bytes_per_page
 		return total_string
-	def readNumberFromNtag(self):page_adr=4;raw_data=self.read(page_adr);return raw_data
-	def readNumberFromClassic(self):
-		adr_list=[1];tag_chip='';buffer_start=0;bytes_per_adr=16;x=0;total_string=''
-		for address in adr_list:raw_data=self.readTagData(address,_M,tag_chip)
-		return raw_data
 	def writeTextToClassic(self,text):
 		data=text;adr_list=[1,2,4,5,6,8,9,10,12];tag_chip='';buffer_start=0;bytes_per_adr=16;x=0
 		for address in adr_list:data_chunk=data[buffer_start:buffer_start+bytes_per_adr];buffer_start=buffer_start+bytes_per_adr;data_byte_array=[ord(x)for x in list(data_chunk)];tag_write_success=self.writeTagDataNonNTAG(address,data_byte_array)
@@ -268,8 +263,8 @@ class PiicoDev_RFID:
 		if detect_tag_result[_J]is _A:detect_tag_result=self.detectTag()
 		if detect_tag_result[_J]:
 			read_tag_id_result=self._readTagID()
-			if read_tag_id_result[_E]:return{_E:read_tag_id_result[_E],_H:read_tag_id_result[_H],_I:read_tag_id_result[_I],_C:read_tag_id_result[_C]}
-		return{_E:_A,_H:[0],_I:'',_C:''}
+			if read_tag_id_result[_E]:self._read_tag_id_success=_D;return{_E:read_tag_id_result[_E],_I:read_tag_id_result[_I],_H:read_tag_id_result[_H],_C:read_tag_id_result[_C]}
+		self._read_tag_id_success=_A;return{_E:_A,_I:[0],_H:'',_C:''}
 	def writeTextToTag(self,text):
 		success=_A;maximum_characters=144
 		while len(text)<maximum_characters:text=text+' '
@@ -297,7 +292,9 @@ class PiicoDev_RFID:
 	def readNumberFromTag(self):
 		bytearray_number=_B;read_tag_id_result=self.readTagID()
 		while read_tag_id_result[_E]is _A:read_tag_id_result=self.readTagID()
-		if read_tag_id_result[_C]==_F:bytearray_number=self.readNumberFromNtag()
-		if read_tag_id_result[_C]==_G:bytearray_number=self.readNumberFromClassic()
+		if read_tag_id_result[_C]==_F:page_address=4;bytearray_number=self.read(page_address)
+		if read_tag_id_result[_C]==_G:register_address=1;bytearray_number=self.readTagData(register_address,_M,'')
 		try:number=struct.unpack('l',bytes(bytearray_number));number=number[0];return number
 		except:print('Error reading card');return 0
+	def readId(self):tagId=self.readTagID();return tagId[_H]
+	def tagPresent(self):id=self.readTagID();return id[_E]
