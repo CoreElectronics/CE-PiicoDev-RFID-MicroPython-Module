@@ -8,30 +8,18 @@ print('Place tag near the PiicoDev RFID Module')
 print('')
 
 # Read the Authorised ID file
-f = open(authorised_ids_filename, 'r')
-authorised_ids_file_content = f.read()
-authorised_ids = authorised_ids_file_content.split('\n')
-for i in range(0,len(authorised_ids)):
-    authorised_ids[i] = authorised_ids[i].strip()
+authorised_users = ['04:F2:0A:D2:ED:6C:84']
 
 while True:
     access_granted = False
     
-    detect_tag_result = rfid.detectTag()
-    tag_present = detect_tag_result['present']
-    
-    if tag_present:
-        read_tag_id_result = rfid.readTagID()
-        tag_success = read_tag_id_result['success']
-        tag_id = read_tag_id_result['id_formatted']
+    if rfid.tagPresent():    # if an RFID tag is present
+        id = rfid.readId()   # get the id
+        print(id)            # print the id
  
-        if tag_success:
-            for i in range(0, len(authorised_ids)):
-                if tag_id == authorised_ids[i]:
-                    access_granted = True
-        if access_granted is True:
-            print('Access GRANTED')
+        if id in authorised_users:
+            print('access granted')
         else:
-            print('Access DENIED')
+            print('access denied')
         sleep_ms(1000)
     sleep_ms(10)

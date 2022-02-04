@@ -75,6 +75,7 @@ class PiicoDev_RFID(object):
     AUTHENT1A = 0x60  #0110 0000
     AUTHENT1B = 0x61  #0110 0001
     
+
     def __init__(self, bus=None, freq=None, sda=None, scl=None, addr=_I2C_ADDRESS):
         try:
             if compat_ind >= 1:
@@ -85,7 +86,8 @@ class PiicoDev_RFID(object):
             print(compat_str)
         self.i2c = create_unified_i2c(bus=bus, freq=freq, sda=sda, scl=scl)
         self.addr = addr
-
+        self._tag_present = False
+        self._read_tag_id_success = False
         self.init()
 
     def _wreg(self, reg, val):
@@ -359,6 +361,7 @@ class PiicoDev_RFID(object):
         _present = False
         if stat is self.OK:
             _present = True
+        self._tag_present = _present
         return {'present':_present, 'ATQA':ATQA}
 
     def _readTagID(self):
@@ -512,22 +515,6 @@ class PiicoDev_RFID(object):
             total_string = total_string + page_text
             page_adr = page_adr + bytes_per_page
         return total_string
-
-    def readNumberFromNtag(self):
-        page_adr = 4
-        raw_data = self.read(page_adr)
-        return raw_data
-    
-    def readNumberFromClassic(self):
-        adr_list = [1] #16
-        tag_chip = ''
-        buffer_start = 0
-        bytes_per_adr = 16
-        x = 0
-        total_string = ''
-        for address in adr_list:
-            raw_data = self.readTagData(address, 'ints', tag_chip)
-        return raw_data
     
     def writeTextToClassic(self, text):
         data = text
@@ -569,7 +556,9 @@ class PiicoDev_RFID(object):
             reg_text= self.readTagData(address, 'text', tag_chip)
             total_string = total_string + reg_text
         return total_string
-            
+    
+    
+    
     def readTagID(self):
         detect_tag_result = self.detectTag()
         if detect_tag_result['present'] is False: #Try again, the card may not be in the correct state
@@ -577,7 +566,9 @@ class PiicoDev_RFID(object):
         if detect_tag_result['present']:
             read_tag_id_result = self._readTagID()
             if read_tag_id_result['success']:
+                self._read_tag_id_success = True
                 return {'success':read_tag_id_result['success'], 'id_integers':read_tag_id_result['id_integers'], 'id_formatted':read_tag_id_result['id_formatted'], 'type':read_tag_id_result['type']}
+        self._read_tag_id_success = False
         return {'success':False, 'id_integers':[0], 'id_formatted':'', 'type':''}
     
     def writeTextToTag(self, text):
@@ -627,9 +618,13 @@ class PiicoDev_RFID(object):
         while read_tag_id_result['success'] is False:
             read_tag_id_result = self.readTagID()
         if read_tag_id_result['type'] == 'ntag':
-            bytearray_number = self.readNumberFromNtag()
+            page_address = 4
+            bytearray_number = self.read(page_address)
+
         if read_tag_id_result['type'] == 'classic':
-            bytearray_number = self.readNumberFromClassic()
+            register_address = 1
+            bytearray_number = self.readTagData(register_address, 'ints', '')
+        
         try:
             number = struct.unpack('l', bytes(bytearray_number))
             number = number[0]
@@ -638,4 +633,10 @@ class PiicoDev_RFID(object):
             print('Error reading card')
             return 0
 
-        
+    def readId(self):
+        tagId = self.readTagID()
+        return tagId['id_formatted']
+
+    def tagPresent(self):
+        id = self.readTagID()
+        return id['success']

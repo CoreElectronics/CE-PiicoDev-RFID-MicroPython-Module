@@ -1,17 +1,16 @@
-from PiicoDev_RFID import *
+from PiicoDev_RFID import PiicoDev_RFID
+from PiicoDev_Unified import sleep_ms
 
-rfid = PiicoDev_RFID()
+rfid = PiicoDev_RFID()   # Initialise the RFID module
 
 print('Place tag near the PiicoDev RFID Module')
 print('')
 
-while True:
-    read_tag_id_result = rfid.readTagID()
-    tag_success = read_tag_id_result['success']
-    tag_id = read_tag_id_result['id_formatted']
+while True:    
+    if rfid.tagPresent():    # if an RFID tag is present
+        id = rfid.readId()   # get the id
+        print(id)            # print the id
 
-    if tag_success:
-        print("ID: ", end=''); print(tag_id)
-        sleep_ms(1000)
-    sleep_ms(10)
-    
+    sleep_ms(100)
+
+

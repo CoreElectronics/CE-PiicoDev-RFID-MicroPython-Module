@@ -1,40 +1,45 @@
-# PiicoDev® VEML6030 MicroPython Module
+# PiicoDev® RFID MicroPython Module
 
-This is the firmware repo for the [Core Electronics PiicoDev® Ambient Light Sensor VEML6030](https://core-electronics.com.au/piicodev-ambient-light-sensor-veml6030.html).
+This is the firmware repo for the [Core Electronics PiicoDev® RFID Module](https://core-electronics.com.au/piicodev-rfid-module.html).
 
 This module depends on the [PiicoDev Unified Library](https://github.com/CoreElectronics/CE-PiicoDev-Unified).
 
-See the Quickstart Guides for:
+<!--See the Quickstart Guides for:
 - [Micro:bit v2](https://core-electronics.com.au/tutorials/piicodev-ambient-light-sensor-veml6030-quickstart-guide-for-micro-bit.html)
 - [Raspberry Pi Pico](https://core-electronics.com.au/tutorials/piicodev-ambient-light-sensor-veml6030-quickstart-guide-for-rpi-pico).
 - [Raspberry Pi](https://core-electronics.com.au/tutorials/piicodev-raspberrypi/piicodev-ambient-light-sensor-veml6030-raspberry-pi-guide.html)
+-->
 
 # Usage
 ## Example
-[main.py](https://github.com/CoreElectronics/CE-PiicoDev-VEML6030-MicroPython-Module/blob/main/main.py) is a simple example to get started.
+[read_id.py](https://github.com/CoreElectronics/CE-PiicoDev-RFID-MicroPython-Module/blob/main/examples/read_id.py) is a simple example to get started.
 ```
-from PiicoDev_VEML6030 import PiicoDev_VEML6030
-from time import sleep
+from PiicoDev_RFID import *
 
-# Initialise Sensor
-light = PiicoDev_VEML6030()
+rfid = PiicoDev_RFID()
+
+print('Place tag near the PiicoDev RFID Module')
+print('')
 
 while True:
-    # Read and print light data
-    lightVal = light.read()
-    print(str(lightVal) + " lux")
+    read_tag_id_result = rfid.readTagID()
+    tag_success = read_tag_id_result['success']
+    tag_id = read_tag_id_result['id_formatted']
 
-    sleep(1)
+    if tag_success:
+        print("ID: ", end=''); print(tag_id)
+        sleep_ms(1000)
+    sleep_ms(10)
 ```
 ## Details
-### PiicoDev_VEML6030(bus=, freq=, sda=, scl=, addr=0x10)
+### PiicoDev_RFID(bus=, freq=, sda=, scl=, addr=0x10)
 Parameter | Type | Range | Default | Description
 --- | --- | --- | --- | ---
 bus | int | 0,1 | Raspberry Pi Pico: 0, Raspberry Pi: 1 | I2C Bus.  Ignored on Micro:bit
 freq | int | 100-1000000 | Device dependent | I2C Bus frequency (Hz).  Ignored on Raspberry Pi
 sda | Pin | Device Dependent | Device Dependent | I2C SDA Pin. Implemented on Raspberry Pi Pico only
 scl | Pin | Device Dependent | Device Dependent | I2C SCL Pin. Implemented on Raspberry Pi Pico only
-addr | int | 0x10, 0x48 | 0x10 | This address needs to match the PiicoDev Ambient Light Sensor VEML6030 hardware address configured by the jumper
+addr | int | 0x2C, 0x2D, 0x2E, 0x2F | 0x2C | This address needs to match the PiicoDev RFID ASW switches:<br>[OFF:OFF] 0x2C<br>[ON :OFF] 0x2D<br>[OFF:ON ] = 0x2E<br>[ON :ON ] 0x2F
 
 ### PiicoDev_VEML6030.read()
 Parameter | Type | Unit | Description
