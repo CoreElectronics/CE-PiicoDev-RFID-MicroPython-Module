@@ -1,6 +1,5 @@
-from PiicoDev_RFID import *
-
-authorised_ids_filename = 'authorised_ids.txt'
+from PiicoDev_RFID import PiicoDev_RFID
+from PiicoDev_Unified import sleep_ms
 
 rfid = PiicoDev_RFID()
 
