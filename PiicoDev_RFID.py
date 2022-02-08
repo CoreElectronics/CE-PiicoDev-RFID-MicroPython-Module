@@ -49,6 +49,8 @@ _TAG_CMD_ANTCOL3 = 0x97
 
 # NTAG
 _NTAG_NO_BYTES_PER_PAGE = 4
+_NTAG_PAGE_ADR_MIN = 4 # user memory is 4 to 39 for NTAG213 so that allows for 144 characters.  So that's 36 pages
+_NTAG_PAGE_ADR_MAX = 39
 
 # Classic
 _TAG_AUTH_KEY_A = 0x60
@@ -76,12 +78,11 @@ def _writeCrumb(x, n, c):
     return _writeBit(x, n+1, _readBit(c, 1))
 
 class PiicoDev_RFID(object):
-    DEBUG = False
     OK = 1
     NOTAGERR = 2
     ERR = 3
 
-    def __init__(self, bus=None, freq=None, sda=None, scl=None, addr=_I2C_ADDRESS):
+    def __init__(self, bus=None, freq=None, sda=None, scl=None, address=_I2C_ADDRESS):
         try:
             if compat_ind >= 1:
                 pass
@@ -90,19 +91,19 @@ class PiicoDev_RFID(object):
         except:
             print(compat_str)
         self.i2c = create_unified_i2c(bus=bus, freq=freq, sda=sda, scl=scl)
-        self.addr = addr
+        self.address = address
         self._tag_present = False
         self._read_tag_id_success = False
         self.init()
 
     def _wreg(self, reg, val):
-        self.i2c.writeto_mem(self.addr, reg, bytes([val]))
+        self.i2c.writeto_mem(self.address, reg, bytes([val]))
 
     def _wfifo(self, reg, val):
-        self.i2c.writeto_mem(self.addr, reg, bytes(val))
+        self.i2c.writeto_mem(self.address, reg, bytes(val))
 
     def _rreg(self, reg):
-        val = self.i2c.readfrom_mem(self.addr, reg, 1)
+        val = self.i2c.readfrom_mem(self.address, reg, 1)
         return val[0]
     
     def _sflags(self, reg, mask):
@@ -412,18 +413,16 @@ class PiicoDev_RFID(object):
         return tag_write_success
     
     def writeNumberToClassic(self, bytes_number, slot=0):
-        assert slot >= 0 and slot <=35, 'Slot must be between 0 and 46'
+        assert slot >= 0 and slot <=35, 'Slot must be between 0 and 35'
         while len(bytes_number) < _CLASSIC_NO_BYTES_PER_REG:
             bytes_number.append(0)
         tag_write_success = self.writeTagDataClassic(_CLASSIC_ADR[slot], bytes_number)
         return tag_write_success
 
     def readTextFromNtag(self):
-        page_adr_min = 4 # user memory is 4 to 39 for NTAG213 so that allows for 144 characters.  So that's 36 pages
-        page_adr_max = 39 # NTAG213
-        page_adr = page_adr_min
+        page_adr = _NTAG_PAGE_ADR_MIN
         total_string = ''
-        while page_adr <= page_adr_max:
+        while page_adr <= _NTAG_PAGE_ADR_MAX:
             raw_data = self.read(page_adr)
             page_text = "".join(chr(x) for x in raw_data)
             total_string = total_string + page_text
@@ -442,11 +441,9 @@ class PiicoDev_RFID(object):
         return total_string
     
     def writeTextToNtag(self, text): # NTAG213
-        page_adr_min = 4 # user memory is 4 to 39 for NTAG213 so that allows for 144 characters.  So that's 36 pages
-        page_adr_max = 39
         buffer_start = 0
-        page_adr = page_adr_min
-        while(page_adr <= page_adr_max):
+        page_adr = _NTAG_PAGE_ADR_MIN
+        while(page_adr <= _NTAG_PAGE_ADR_MAX):
             data_chunk = text[buffer_start:buffer_start+_NTAG_NO_BYTES_PER_PAGE]
             buffer_start = buffer_start + _NTAG_NO_BYTES_PER_PAGE
             data_byte_array = [ord(x) for x in list(data_chunk)]
