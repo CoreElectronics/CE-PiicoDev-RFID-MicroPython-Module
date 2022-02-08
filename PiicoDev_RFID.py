@@ -11,9 +11,9 @@ import struct
 compat_str = '\nUnified PiicoDev library out of date.  Get the latest module: https://piico.dev/unified \n'
 
 _I2C_ADDRESS        = 0x2C
+
 _REG_COMMAND        = 0x01
 _REG_COM_I_EN       = 0x02
-_REG_DIV_I_EN       = 0x03
 _REG_COM_IRQ        = 0x04
 _REG_DIV_IRQ        = 0x05
 _REG_ERROR          = 0x06
@@ -47,6 +47,9 @@ _TAG_CMD_ANTCOL1 = 0x93
 _TAG_CMD_ANTCOL2 = 0x95
 _TAG_CMD_ANTCOL3 = 0x97
 
+# Classic Only
+_TAG_AUTH_KEY_A = 0x60
+
 def _readBit(x, n):
     return x & 1 << n != 0
 
@@ -68,13 +71,9 @@ def _writeCrumb(x, n, c):
 
 class PiicoDev_RFID(object):
     DEBUG = False
-    OK = 10   # Can put any number here - not used for communicating past this program
-    NOTAGERR = 31  # Can put any number here - not used for communicating past this program
-    ERR = 42 # Can put any number here - not used for communicating past this program
-   
-    AUTHENT1A = 0x60  #0110 0000
-    AUTHENT1B = 0x61  #0110 0001
-    
+    OK = 1
+    NOTAGERR = 2
+    ERR = 3
 
     def __init__(self, bus=None, freq=None, sda=None, scl=None, addr=_I2C_ADDRESS):
         try:
@@ -92,8 +91,6 @@ class PiicoDev_RFID(object):
 
     def _wreg(self, reg, val):
         self.i2c.writeto_mem(self.addr, reg, bytes([val]))
-        #self.i2c.writeto_mem(self.addr, reg, bytes(val))
-        #self.i2c.write8(self.addr, bytes(reg), bytes(val))
 
     def _wfifo(self, reg, val):
         self.i2c.writeto_mem(self.addr, reg, bytes(val))
@@ -123,7 +120,6 @@ class PiicoDev_RFID(object):
         self._wreg(_REG_COMMAND, _CMD_IDLE) # Stop any active command.
         self._wreg(_REG_COM_IRQ, 0x7F)      # Clear all seven interrupt request bits
         self._sflags(_REG_FIFO_LEVEL, 0x80) # FlushBuffer = 1, FIFO initialization
-        #print(send)
         self._wfifo(_REG_FIFO_DATA, send)   # Write to the FIFO
         if cmd == _CMD_TRANCEIVE:
             self._sflags(_REG_BIT_FRAMING, 0x00) # This starts the transceive operation
@@ -139,13 +135,10 @@ class PiicoDev_RFID(object):
             n = self._rreg(_REG_COM_IRQ)
             i -= 1
             if n & wait_irq:
-                #print('_tocard wait irq break')
                 break
             if n & 0x01:
-                #print('_tocard nothing received in 25ms')
                 break
             if i == 0:
-                #print('_tocard communication might be down')
                 break
         self._cflags(_REG_BIT_FRAMING, 0x80)
         
@@ -177,11 +170,7 @@ class PiicoDev_RFID(object):
         self._wreg(_REG_COMMAND, _CMD_IDLE)
         self._cflags(_REG_DIV_IRQ, 0x04)
         self._sflags(_REG_FIFO_LEVEL, 0x80)
-        
-        #data.append
-        #print('CRC Data')
-        #print(data)
-        
+
         for c in data:
             self._wreg(_REG_FIFO_DATA, c)
         self._wreg(_REG_COMMAND, _CMD_CALC_CRC)
@@ -197,16 +186,14 @@ class PiicoDev_RFID(object):
 
     def init(self):
         self.reset()
-        sleep_ms(50) #not sure if we need this
-        self._wreg(_REG_T_MODE, 0x80)            #0x80
-        self._wreg(_REG_T_PRESCALER, 0xA9)       #0xA9
-        self._wreg(_REG_T_RELOAD_HI, 0x03)       #0x03
-        self._wreg(_REG_T_RELOAD_LO, 0xE8)       #0xE8
+        sleep_ms(50)
+        self._wreg(_REG_T_MODE, 0x80)
+        self._wreg(_REG_T_PRESCALER, 0xA9)
+        self._wreg(_REG_T_RELOAD_HI, 0x03)
+        self._wreg(_REG_T_RELOAD_LO, 0xE8)
         self._wreg(_REG_TX_ASK, 0x40)
         self._wreg(_REG_MODE, 0x3D)
-        #self._wreg(_REG_DIV_I_EN, 0x80)
         self.antenna_on()
-        #print('Device Initialised')
 
     def reset(self):
         self._wreg(_REG_COMMAND, _CMD_SOFT_RESET)
@@ -218,7 +205,6 @@ class PiicoDev_RFID(object):
             self._cflags(_REG_TX_CONTROL, b'\x03')
               
     def request(self, mode):
-        #print('Request Made')
         self._wreg(_REG_BIT_FRAMING, 0x07)
         (stat, recv, bits) = self._tocard(_CMD_TRANCEIVE, [mode])
         if (stat != self.OK) | (bits != 0x10):
@@ -233,7 +219,6 @@ class PiicoDev_RFID(object):
 
         self._wreg(_REG_BIT_FRAMING, 0x00)
         (stat, recv, bits) = self._tocard(_CMD_TRANCEIVE, ser)
-        #print(recv, bits)
         if stat == self.OK:
             if len(recv) == 5:
                 for i in range(4):
@@ -284,12 +269,7 @@ class PiicoDev_RFID(object):
         buf = [0xA2, page]
         buf += data
         buf += self._crc(buf)
-        #print('buf')
-        #print(buf)
         (stat, recv, bits) = self._tocard(_CMD_TRANCEIVE, buf)
-        #print(stat)
-        #print(recv)
-        #print(bits)
         return stat
 
     def SelfTest(self): # page 82
@@ -327,17 +307,11 @@ class PiicoDev_RFID(object):
             if uid[0] == 0x88 :
                 valid_uid.extend(uid[1:4])
                 (status , uid) = self.anticoll(_TAG_CMD_ANTCOL3)
-                #print("Select Tag 3:",self.tohexstring(uid))
                 if status != self.OK:
                     return (self.ERR,[])
-                #if self.DEBUG: print("Anticol(3) {}".format(uid))
                 if self.MFRC522_PcdSelect(uid,_TAG_CMD_ANTCOL3) == 0:
                     return (self.ERR,[])
-                #if self.DEBUG: print("PcdSelect(3) {}".format(uid))
         valid_uid.extend(uid[0:5])
-        # if we are here than the uid is ok
-        # let's remove the last BYTE whic is the XOR sum
-        
         return (self.OK , valid_uid[:len(valid_uid)-1])
     
     def PcdSelect(self, serNum,anticolN):
@@ -381,7 +355,7 @@ class PiicoDev_RFID(object):
             type = 'classic'
         return {'success':_success, 'id_integers':id, 'id_formatted':id_formatted.upper(), 'type':type}
     
-    def readTagData(self, register, data_type, tag_chip):
+    def readClassicData(self, register, data_type):
         tag_data = None
         auth_result = 0
         while tag_data is None:
@@ -390,16 +364,13 @@ class PiicoDev_RFID(object):
                 (stat, raw_uid) = self.anticoll()
                 if stat == self.OK:
                     if self.select_tag(raw_uid) == self.OK:
-                        if tag_chip is not 'NTAG2xx':
-                            key = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]
-                            auth_result = self.auth(self.AUTHENT1A, register, key, raw_uid)
-                        if (auth_result == self.OK) or tag_chip == 'NTAG2xx':
-                            if self.DEBUG: print("made it here {}".format(self.OK))
+                        key = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]
+                        auth_result = self.auth(_TAG_AUTH_KEY_A, register, key, raw_uid)
+                        if (auth_result == self.OK):
                             raw_data = self.read(register)
                             if raw_data is not None:
-                                if self.DEBUG: print("made it here1 {}".format(self.OK))
                                 if data_type is 'text':
-                                    tag_data = "".join(chr(x) for x in raw_data)
+                                    tag_data = raw_data
                                 if data_type is 'ints':
                                     tag_data = raw_data
                             self.stop_crypto1()
@@ -409,31 +380,8 @@ class PiicoDev_RFID(object):
                     else:
                         print("Failed to select tag")
             sleep_ms(10)
-            
-    def readNTAG213Data(self, page, data_type, tag_chip):
-        tag_data = None
-        auth_result = 0
-        while tag_data is None:
-            (stat, tag_type) = self.request(_TAG_CMD_REQIDL)
-            if stat == self.OK:
-                (stat, raw_uid) = self.anticoll()
-                if stat == self.OK:
-                    if self.select_tag(raw_uid) == self.OK:
-                        if self.DEBUG: print("made it here {}".format(self.OK))
-                        raw_data = self.read(page)
-                        if raw_data is not None:
-                            if self.DEBUG: print("made it here1 {}".format(self.OK))
-                            if data_type is 'text':
-                                tag_data = "".join(chr(x) for x in raw_data)
-                            if data_type is 'ints':
-                                tag_data = raw_data
-                        return tag_data
-                    else:
-                        print("Failed to select tag")
-            sleep_ms(10)        
     
-    
-    def writeTagDataNonNTAG(self, register, data_byte_array):
+    def writeTagDataClassic(self, register, data_byte_array):
         while True:
             auth_result = 0
             (stat, tag_type) = self.request(_TAG_CMD_REQIDL)
@@ -445,13 +393,12 @@ class PiicoDev_RFID(object):
                     if self.select_tag(raw_uid) == self.OK:
 
                         key = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]
-                        auth_result = self.auth(self.AUTHENT1A, register, key, raw_uid)
+                        auth_result = self.auth(_TAG_AUTH_KEY_A, register, key, raw_uid)
                         if (auth_result == self.OK):
-                            if self.DEBUG: print("made it here {}".format(self.OK))
                             stat = self.classicWrite(register, data_byte_array)
                             self.stop_crypto1()
                             if stat == self.OK:
-                                return True # Data written to tag
+                                return True
                             else:
                                 print("Failed to write data to tag")
                                 return False
@@ -519,7 +466,6 @@ class PiicoDev_RFID(object):
     def writeTextToClassic(self, text):
         data = text
         adr_list = [1, 2, 4, 5, 6, 8, 9, 10, 12] #16
-        tag_chip = ''
         buffer_start = 0
         bytes_per_adr = 16
         x = 0
@@ -527,14 +473,13 @@ class PiicoDev_RFID(object):
             data_chunk = data[buffer_start:buffer_start+bytes_per_adr]
             buffer_start = buffer_start + bytes_per_adr
             data_byte_array = [ord(x) for x in list(data_chunk)]
-            tag_write_success = self.writeTagDataNonNTAG(address, data_byte_array)
+            tag_write_success = self.writeTagDataClassic(address, data_byte_array)
         return tag_write_success
     
     def writeNumberToClassic(self, bytes_number):
         while len(bytes_number) < 16:
             bytes_number.append(0)
         adr_list = [1] #16
-        tag_chip = ''
         buffer_start = 0
         bytes_per_adr = 16
         x = 0
@@ -542,22 +487,20 @@ class PiicoDev_RFID(object):
             data_chunk = bytes_number[buffer_start:buffer_start+bytes_per_adr]
             buffer_start = buffer_start + bytes_per_adr
             data_byte_array = bytes_number
-            tag_write_success = self.writeTagDataNonNTAG(address, data_byte_array)
+            tag_write_success = self.writeTagDataClassic(address, data_byte_array)
         return tag_write_success
 
     def readTextFromClassic(self):
         adr_list = [1, 2, 4, 5, 6, 8, 9, 10, 12] #16
-        tag_chip = ''
         buffer_start = 0
         bytes_per_adr = 16
         x = 0
         total_string = ''
         for address in adr_list:
-            reg_text= self.readTagData(address, 'text', tag_chip)
+            reg_data = self.readClassicData(address, 'text')
+            reg_text = "".join(chr(x) for x in reg_data)
             total_string = total_string + reg_text
         return total_string
-    
-    
     
     def readTagID(self):
         detect_tag_result = self.detectTag()
@@ -605,7 +548,6 @@ class PiicoDev_RFID(object):
         read_tag_id_result = self.readTagID()
         while read_tag_id_result['success'] is False:
             read_tag_id_result = self.readTagID()
-            print(read_tag_id_result)
         if read_tag_id_result['type'] == 'ntag':
             text = self.readTextFromNtag()
         if read_tag_id_result['type'] == 'classic':
@@ -623,7 +565,7 @@ class PiicoDev_RFID(object):
 
         if read_tag_id_result['type'] == 'classic':
             register_address = 1
-            bytearray_number = self.readTagData(register_address, 'ints', '')
+            bytearray_number = self.readClassicData(register_address, 'ints')
         
         try:
             number = struct.unpack('l', bytes(bytearray_number))
