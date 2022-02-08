@@ -36,9 +36,8 @@ while True:
         print('New Balance: ', end=''); print(new_balance_formatted)
         
         # Wait for the user to remove the tag
-        read_tag_id_result = rfid.readTagID()
-        while read_tag_id_result['success']:
-            read_tag_id_result = rfid.readTagID()
+        while rfid.tagPresent():
+            sleep_ms(10)
 
     sleep_ms(2000)
     print('')
