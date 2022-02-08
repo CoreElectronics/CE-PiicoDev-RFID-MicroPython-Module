@@ -47,8 +47,12 @@ _TAG_CMD_ANTCOL1 = 0x93
 _TAG_CMD_ANTCOL2 = 0x95
 _TAG_CMD_ANTCOL3 = 0x97
 
-# Classic Only
+# NTAG
+_NTAG_NO_BYTES_PER_PAGE = 4
+
+# Classic
 _TAG_AUTH_KEY_A = 0x60
+_CLASSIC_NO_BYTES_PER_REG = 16
 
 def _readBit(x, n):
     return x & 1 << n != 0
@@ -123,12 +127,9 @@ class PiicoDev_RFID(object):
         self._wfifo(_REG_FIFO_DATA, send)   # Write to the FIFO
         if cmd == _CMD_TRANCEIVE:
             self._sflags(_REG_BIT_FRAMING, 0x00) # This starts the transceive operation
-        #self._wreg(_REG_COM_I_EN, irq_en | 0x80)  # 0x80
         self._wreg(_REG_COMMAND, cmd)
         if cmd == _CMD_TRANCEIVE:
             self._sflags(_REG_BIT_FRAMING, 0x80) # This starts the transceive operation
-        #self._cflags(_REG_COM_IRQ, 0x80)
-        #self._wreg(_REG_COM_IRQ, 0x7F)  # temp - forcing the flag
 
         i = 20000  #2000
         while True:
@@ -355,7 +356,7 @@ class PiicoDev_RFID(object):
             type = 'classic'
         return {'success':_success, 'id_integers':id, 'id_formatted':id_formatted.upper(), 'type':type}
     
-    def readClassicData(self, register, data_type):
+    def readClassicData(self, register):
         tag_data = None
         auth_result = 0
         while tag_data is None:
@@ -405,17 +406,13 @@ class PiicoDev_RFID(object):
                         return False
     
     def writeTextToNtag(self, text): # NTAG213
-        data = text
         page_adr_min = 4 # user memory is 4 to 39 for NTAG213 so that allows for 144 characters.  So that's 36 pages
         page_adr_max = 39
-
-        bytes_per_page = 4
         buffer_start = 0
-        bytes_per_page = 4
         page_adr = page_adr_min
         while(page_adr <= page_adr_max):
-            data_chunk = data[buffer_start:buffer_start+bytes_per_page]
-            buffer_start = buffer_start + bytes_per_page
+            data_chunk = text[buffer_start:buffer_start+_NTAG_NO_BYTES_PER_PAGE]
+            buffer_start = buffer_start + _NTAG_NO_BYTES_PER_PAGE
             data_byte_array = [ord(x) for x in list(data_chunk)]
             stat = self.nTAG2xxWrite(page_adr, data_byte_array)
             tag_write_success = False
@@ -428,13 +425,11 @@ class PiicoDev_RFID(object):
         data = bytes_number
         page_adr_min = 4
         page_adr_max = 4
-        bytes_per_page = 4
         buffer_start = 0
-        bytes_per_page = 4
         page_adr = page_adr_min
         while(page_adr <= page_adr_max):
-            data_chunk = data[buffer_start:buffer_start+bytes_per_page]
-            buffer_start = buffer_start + bytes_per_page
+            data_chunk = data[buffer_start:buffer_start+_NTAG_NO_BYTES_PER_PAGE]
+            buffer_start = buffer_start + _NTAG_NO_BYTES_PER_PAGE
             data_byte_array = bytes_number
             stat = self.nTAG2xxWrite(page_adr, data_byte_array)
             tag_write_success = False
@@ -446,27 +441,23 @@ class PiicoDev_RFID(object):
     def readTextFromNtag(self):
         page_adr_min = 4 # user memory is 4 to 39 for NTAG213 so that allows for 144 characters.  So that's 36 pages
         page_adr_max = 39 # NTAG213
-        bytes_per_page = 4
-        buffer_start = 0
-        bytes_per_page = 4
         page_adr = page_adr_min
         total_string = ''
         while page_adr <= page_adr_max:
             raw_data = self.read(page_adr)
             page_text = "".join(chr(x) for x in raw_data)
             total_string = total_string + page_text
-            page_adr = page_adr + bytes_per_page
+            page_adr = page_adr + _NTAG_NO_BYTES_PER_PAGE
         return total_string
     
     def writeTextToClassic(self, text):
         data = text
         adr_list = [1, 2, 4, 5, 6, 8, 9, 10, 12] #16
         buffer_start = 0
-        bytes_per_adr = 16
         x = 0
         for address in adr_list:
-            data_chunk = data[buffer_start:buffer_start+bytes_per_adr]
-            buffer_start = buffer_start + bytes_per_adr
+            data_chunk = data[buffer_start:buffer_start+_CLASSIC_NO_BYTES_PER_REG]
+            buffer_start = buffer_start + _CLASSIC_NO_BYTES_PER_REG
             data_byte_array = [ord(x) for x in list(data_chunk)]
             tag_write_success = self.writeTagDataClassic(address, data_byte_array)
         return tag_write_success
@@ -476,11 +467,10 @@ class PiicoDev_RFID(object):
             bytes_number.append(0)
         adr_list = [1] #16
         buffer_start = 0
-        bytes_per_adr = 16
         x = 0
         for address in adr_list:
-            data_chunk = bytes_number[buffer_start:buffer_start+bytes_per_adr]
-            buffer_start = buffer_start + bytes_per_adr
+            data_chunk = bytes_number[buffer_start:buffer_start+_CLASSIC_NO_BYTES_PER_REG]
+            buffer_start = buffer_start + _CLASSIC_NO_BYTES_PER_REG
             data_byte_array = bytes_number
             tag_write_success = self.writeTagDataClassic(address, data_byte_array)
         return tag_write_success
@@ -488,11 +478,10 @@ class PiicoDev_RFID(object):
     def readTextFromClassic(self):
         adr_list = [1, 2, 4, 5, 6, 8, 9, 10, 12] #16
         buffer_start = 0
-        bytes_per_adr = 16
         x = 0
         total_string = ''
         for address in adr_list:
-            reg_data = self.readClassicData(address, 'text')
+            reg_data = self.readClassicData(address)
             reg_text = "".join(chr(x) for x in reg_data)
             total_string = total_string + reg_text
         return total_string
@@ -560,7 +549,7 @@ class PiicoDev_RFID(object):
 
         if read_tag_id_result['type'] == 'classic':
             register_address = 1
-            bytearray_number = self.readClassicData(register_address, 'ints')
+            bytearray_number = self.readClassicData(register_address)
         
         try:
             number = struct.unpack('l', bytes(bytearray_number))
