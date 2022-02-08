@@ -270,5 +270,5 @@ class PiicoDev_RFID:
 		if read_tag_id_result[_B]==_G:bytearray_number=self.readClassicData(_CLASSIC_ADR[slot])
 		try:number=struct.unpack('l',bytes(bytearray_number));number=number[0];return number
 		except:print('Error reading card');return 0
-	def readId(self):tagId=self.readTagID();return tagId[_H]
+	def readID(self):tagId=self.readTagID();return tagId[_H]
 	def tagPresent(self):id=self.readTagID();return id[_D]
