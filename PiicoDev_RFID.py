@@ -367,12 +367,7 @@ class PiicoDev_RFID(object):
                         key = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]
                         auth_result = self.auth(_TAG_AUTH_KEY_A, register, key, raw_uid)
                         if (auth_result == self.OK):
-                            raw_data = self.read(register)
-                            if raw_data is not None:
-                                if data_type is 'text':
-                                    tag_data = raw_data
-                                if data_type is 'ints':
-                                    tag_data = raw_data
+                            tag_data = self.read(register)
                             self.stop_crypto1()
                             return tag_data
                         else:
