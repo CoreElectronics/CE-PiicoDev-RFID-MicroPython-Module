@@ -1,18 +1,14 @@
-_P='Authentication error'
-_O='made it here1 {}'
-_N='Failed to select tag'
-_M='ints'
-_L='text'
-_K='made it here {}'
+_L='Failed to select tag'
+_K='Authentication error'
 _J='present'
 _I='id_integers'
 _H='id_formatted'
 _G='classic'
 _F='ntag'
-_E='success'
-_D=True
-_C='type'
-_B=None
+_E=None
+_D='success'
+_C=True
+_B='type'
 _A=False
 from PiicoDev_Unified import *
 import struct
@@ -20,7 +16,6 @@ compat_str='\nUnified PiicoDev library out of date.  Get the latest module: http
 _I2C_ADDRESS=44
 _REG_COMMAND=1
 _REG_COM_I_EN=2
-_REG_DIV_I_EN=3
 _REG_COM_IRQ=4
 _REG_DIV_IRQ=5
 _REG_ERROR=6
@@ -51,6 +46,7 @@ _TAG_CMD_REQALL=82
 _TAG_CMD_ANTCOL1=147
 _TAG_CMD_ANTCOL2=149
 _TAG_CMD_ANTCOL3=151
+_TAG_AUTH_KEY_A=96
 def _readBit(x,n):return x&1<<n!=0
 def _setBit(x,n):return x|1<<n
 def _clearBit(x,n):return x&~(1<<n)
@@ -59,8 +55,8 @@ def _writeBit(x,n,b):
 	else:return _setBit(x,n)
 def _writeCrumb(x,n,c):x=_writeBit(x,n,_readBit(c,0));return _writeBit(x,n+1,_readBit(c,1))
 class PiicoDev_RFID:
-	DEBUG=_A;OK=10;NOTAGERR=31;ERR=42;AUTHENT1A=96;AUTHENT1B=97
-	def __init__(self,bus=_B,freq=_B,sda=_B,scl=_B,addr=_I2C_ADDRESS):
+	DEBUG=_A;OK=1;NOTAGERR=2;ERR=3
+	def __init__(self,bus=_E,freq=_E,sda=_E,scl=_E,addr=_I2C_ADDRESS):
 		try:
 			if compat_ind>=1:0
 			else:print(compat_str)
@@ -80,7 +76,7 @@ class PiicoDev_RFID:
 		self._wreg(_REG_COMMAND,cmd)
 		if cmd==_CMD_TRANCEIVE:self._sflags(_REG_BIT_FRAMING,128)
 		i=20000
-		while _D:
+		while _C:
 			n=self._rreg(_REG_COM_IRQ);i-=1
 			if n&wait_irq:break
 			if n&1:break
@@ -103,13 +99,13 @@ class PiicoDev_RFID:
 		self._wreg(_REG_COMMAND,_CMD_IDLE);self._cflags(_REG_DIV_IRQ,4);self._sflags(_REG_FIFO_LEVEL,128)
 		for c in data:self._wreg(_REG_FIFO_DATA,c)
 		self._wreg(_REG_COMMAND,_CMD_CALC_CRC);i=255
-		while _D:
+		while _C:
 			n=self._rreg(_REG_DIV_IRQ);i-=1
 			if not(i!=0 and not n&4):break
 		self._wreg(_REG_COMMAND,_CMD_IDLE);return[self._rreg(_REG_CRC_RESULT_LSB),self._rreg(_REG_CRC_RESULT_MSB)]
 	def init(self):self.reset();sleep_ms(50);self._wreg(_REG_T_MODE,128);self._wreg(_REG_T_PRESCALER,169);self._wreg(_REG_T_RELOAD_HI,3);self._wreg(_REG_T_RELOAD_LO,232);self._wreg(_REG_TX_ASK,64);self._wreg(_REG_MODE,61);self.antenna_on()
 	def reset(self):self._wreg(_REG_COMMAND,_CMD_SOFT_RESET)
-	def antenna_on(self,on=_D):
+	def antenna_on(self,on=_C):
 		if on and~(self._rreg(_REG_TX_CONTROL)&3):self._sflags(_REG_TX_CONTROL,131)
 		else:self._cflags(_REG_TX_CONTROL,b'\x03')
 	def request(self,mode):
@@ -127,7 +123,7 @@ class PiicoDev_RFID:
 	def select_tag(self,ser):buf=[147,112]+ser[:5];buf+=self._crc(buf);stat,recv,bits=self._tocard(_CMD_TRANCEIVE,buf);return self.OK if stat==self.OK and bits==24 else self.ERR
 	def auth(self,mode,addr,sect,ser):return self._tocard(_CMD_MF_AUTHENT,[mode,addr]+sect+ser[:4])[0]
 	def stop_crypto1(self):self._cflags(_REG_STATUS_2,8)
-	def read(self,addr):data=[48,addr];data+=self._crc(data);stat,recv,_=self._tocard(_CMD_TRANCEIVE,data);return recv if stat==self.OK else _B
+	def read(self,addr):data=[48,addr];data+=self._crc(data);stat,recv,_=self._tocard(_CMD_TRANCEIVE,data);return recv if stat==self.OK else _E
 	def classicWrite(self,addr,data):
 		buf=[160,addr];buf+=self._crc(buf);stat,recv,bits=self._tocard(_CMD_TRANCEIVE,buf)
 		if not stat==self.OK or not bits==4 or not recv[0]&15==10:stat=self.ERR
@@ -162,11 +158,11 @@ class PiicoDev_RFID:
 		else:return 0
 	def detectTag(self):
 		stat,ATQA=self.request(_TAG_CMD_REQIDL);_present=_A
-		if stat is self.OK:_present=_D
+		if stat is self.OK:_present=_C
 		self._tag_present=_present;return{_J:_present,'ATQA':ATQA}
 	def _readTagID(self):
-		stat,id=self.SelectTagSN();_success=_D
-		if stat is self.OK:_success=_D
+		stat,id=self.SelectTagSN();_success=_C
+		if stat is self.OK:_success=_C
 		id_formatted=''
 		for i in range(0,len(id)):
 			if i>0:id_formatted=id_formatted+':'
@@ -174,71 +170,51 @@ class PiicoDev_RFID:
 			id_formatted=id_formatted+hex(id[i])[2:]
 		type=_F
 		if len(id)==4:type=_G
-		return{_E:_success,_I:id,_H:id_formatted.upper(),_C:type}
-	def readTagData(self,register,data_type,tag_chip):
-		A='NTAG2xx';tag_data=_B;auth_result=0
-		while tag_data is _B:
+		return{_D:_success,_I:id,_H:id_formatted.upper(),_B:type}
+	def readClassicData(self,register,data_type):
+		tag_data=_E;auth_result=0
+		while tag_data is _E:
 			stat,tag_type=self.request(_TAG_CMD_REQIDL)
 			if stat==self.OK:
 				stat,raw_uid=self.anticoll()
 				if stat==self.OK:
 					if self.select_tag(raw_uid)==self.OK:
-						if tag_chip is not A:key=[255,255,255,255,255,255];auth_result=self.auth(self.AUTHENT1A,register,key,raw_uid)
-						if auth_result==self.OK or tag_chip==A:
-							if self.DEBUG:print(_K.format(self.OK))
+						key=[255,255,255,255,255,255];auth_result=self.auth(_TAG_AUTH_KEY_A,register,key,raw_uid)
+						if auth_result==self.OK:
 							raw_data=self.read(register)
-							if raw_data is not _B:
-								if self.DEBUG:print(_O.format(self.OK))
-								if data_type is _L:tag_data=''.join((chr(x)for x in raw_data))
-								if data_type is _M:tag_data=raw_data
+							if raw_data is not _E:
+								if data_type is'text':tag_data=raw_data
+								if data_type is'ints':tag_data=raw_data
 							self.stop_crypto1();return tag_data
-						else:print(_P)
-					else:print(_N)
+						else:print(_K)
+					else:print(_L)
 			sleep_ms(10)
-	def readNTAG213Data(self,page,data_type,tag_chip):
-		tag_data=_B;auth_result=0
-		while tag_data is _B:
-			stat,tag_type=self.request(_TAG_CMD_REQIDL)
-			if stat==self.OK:
-				stat,raw_uid=self.anticoll()
-				if stat==self.OK:
-					if self.select_tag(raw_uid)==self.OK:
-						if self.DEBUG:print(_K.format(self.OK))
-						raw_data=self.read(page)
-						if raw_data is not _B:
-							if self.DEBUG:print(_O.format(self.OK))
-							if data_type is _L:tag_data=''.join((chr(x)for x in raw_data))
-							if data_type is _M:tag_data=raw_data
-						return tag_data
-					else:print(_N)
-			sleep_ms(10)
-	def writeTagDataNonNTAG(self,register,data_byte_array):
-		while _D:
+	def writeTagDataClassic(self,register,data_byte_array):
+		while _C:
 			auth_result=0;stat,tag_type=self.request(_TAG_CMD_REQIDL)
 			if stat==self.OK:
 				stat,raw_uid=self.anticoll()
 				if stat==self.OK:
 					if self.select_tag(raw_uid)==self.OK:
-						key=[255,255,255,255,255,255];auth_result=self.auth(self.AUTHENT1A,register,key,raw_uid)
+						key=[255,255,255,255,255,255];auth_result=self.auth(_TAG_AUTH_KEY_A,register,key,raw_uid)
 						if auth_result==self.OK:
-							if self.DEBUG:print(_K.format(self.OK))
 							stat=self.classicWrite(register,data_byte_array);self.stop_crypto1()
-							if stat==self.OK:return _D
+							if stat==self.OK:return _C
 							else:print('Failed to write data to tag');return _A
-						else:print(_P);return _A
-					else:print(_N);return _A
+						else:print(_K);return _A
+					else:print(_L);return _A
 	def writeTextToNtag(self,text):
 		data=text;page_adr_min=4;page_adr_max=39;bytes_per_page=4;buffer_start=0;bytes_per_page=4;page_adr=page_adr_min
 		while page_adr<=page_adr_max:
 			data_chunk=data[buffer_start:buffer_start+bytes_per_page];buffer_start=buffer_start+bytes_per_page;data_byte_array=[ord(x)for x in list(data_chunk)];stat=self.nTAG2xxWrite(page_adr,data_byte_array);tag_write_success=_A
-			if stat==self.OK:tag_write_success=_D
+			if stat==self.OK:tag_write_success=_C
 			page_adr=page_adr+1
 		return tag_write_success
 	def writeNumberToNtag(self,bytes_number):
 		data=bytes_number;page_adr_min=4;page_adr_max=4;bytes_per_page=4;buffer_start=0;bytes_per_page=4;page_adr=page_adr_min
 		while page_adr<=page_adr_max:
 			data_chunk=data[buffer_start:buffer_start+bytes_per_page];buffer_start=buffer_start+bytes_per_page;data_byte_array=bytes_number;stat=self.nTAG2xxWrite(page_adr,data_byte_array);tag_write_success=_A
-			if stat==self.OK:tag_write_success=_D
+			if stat==self.OK:tag_write_success=_C
 			page_adr=page_adr+1
 		return tag_write_success
 	def readTextFromNtag(self):
@@ -246,55 +222,55 @@ class PiicoDev_RFID:
 		while page_adr<=page_adr_max:raw_data=self.read(page_adr);page_text=''.join((chr(x)for x in raw_data));total_string=total_string+page_text;page_adr=page_adr+bytes_per_page
 		return total_string
 	def writeTextToClassic(self,text):
-		data=text;adr_list=[1,2,4,5,6,8,9,10,12];tag_chip='';buffer_start=0;bytes_per_adr=16;x=0
-		for address in adr_list:data_chunk=data[buffer_start:buffer_start+bytes_per_adr];buffer_start=buffer_start+bytes_per_adr;data_byte_array=[ord(x)for x in list(data_chunk)];tag_write_success=self.writeTagDataNonNTAG(address,data_byte_array)
+		data=text;adr_list=[1,2,4,5,6,8,9,10,12];buffer_start=0;bytes_per_adr=16;x=0
+		for address in adr_list:data_chunk=data[buffer_start:buffer_start+bytes_per_adr];buffer_start=buffer_start+bytes_per_adr;data_byte_array=[ord(x)for x in list(data_chunk)];tag_write_success=self.writeTagDataClassic(address,data_byte_array)
 		return tag_write_success
 	def writeNumberToClassic(self,bytes_number):
 		while len(bytes_number)<16:bytes_number.append(0)
-		adr_list=[1];tag_chip='';buffer_start=0;bytes_per_adr=16;x=0
-		for address in adr_list:data_chunk=bytes_number[buffer_start:buffer_start+bytes_per_adr];buffer_start=buffer_start+bytes_per_adr;data_byte_array=bytes_number;tag_write_success=self.writeTagDataNonNTAG(address,data_byte_array)
+		adr_list=[1];buffer_start=0;bytes_per_adr=16;x=0
+		for address in adr_list:data_chunk=bytes_number[buffer_start:buffer_start+bytes_per_adr];buffer_start=buffer_start+bytes_per_adr;data_byte_array=bytes_number;tag_write_success=self.writeTagDataClassic(address,data_byte_array)
 		return tag_write_success
 	def readTextFromClassic(self):
-		adr_list=[1,2,4,5,6,8,9,10,12];tag_chip='';buffer_start=0;bytes_per_adr=16;x=0;total_string=''
-		for address in adr_list:reg_text=self.readTagData(address,_L,tag_chip);total_string=total_string+reg_text
+		adr_list=[1,2,4,5,6,8,9,10,12];buffer_start=0;bytes_per_adr=16;x=0;total_string=''
+		for address in adr_list:reg_data=self.readClassicData(address,'text');reg_text=''.join((chr(x)for x in reg_data));total_string=total_string+reg_text
 		return total_string
 	def readTagID(self):
 		detect_tag_result=self.detectTag()
 		if detect_tag_result[_J]is _A:detect_tag_result=self.detectTag()
 		if detect_tag_result[_J]:
 			read_tag_id_result=self._readTagID()
-			if read_tag_id_result[_E]:self._read_tag_id_success=_D;return{_E:read_tag_id_result[_E],_I:read_tag_id_result[_I],_H:read_tag_id_result[_H],_C:read_tag_id_result[_C]}
-		self._read_tag_id_success=_A;return{_E:_A,_I:[0],_H:'',_C:''}
+			if read_tag_id_result[_D]:self._read_tag_id_success=_C;return{_D:read_tag_id_result[_D],_I:read_tag_id_result[_I],_H:read_tag_id_result[_H],_B:read_tag_id_result[_B]}
+		self._read_tag_id_success=_A;return{_D:_A,_I:[0],_H:'',_B:''}
 	def writeTextToTag(self,text):
 		success=_A;maximum_characters=144
 		while len(text)<maximum_characters:text=text+' '
 		read_tag_id_result=self.readTagID()
-		if read_tag_id_result[_C]==_F:success=self.writeTextToNtag(text)
-		if read_tag_id_result[_C]==_G:success=self.writeTextToClassic(text)
+		if read_tag_id_result[_B]==_F:success=self.writeTextToNtag(text)
+		if read_tag_id_result[_B]==_G:success=self.writeTextToClassic(text)
 		return success
 	def writeNumberToTag(self,number):
 		success=_A;bytearray_number=bytearray(struct.pack('l',number));read_tag_id_result=self.readTagID()
-		while read_tag_id_result[_E]is _A:read_tag_id_result=self.readTagID()
-		if read_tag_id_result[_E]:
-			if read_tag_id_result[_C]==_F:
+		while read_tag_id_result[_D]is _A:read_tag_id_result=self.readTagID()
+		if read_tag_id_result[_D]:
+			if read_tag_id_result[_B]==_F:
 				success=self.writeNumberToNtag(bytearray_number)
 				while success is _A:success=self.writeNumberToNtag(bytearray_number)
-			if read_tag_id_result[_C]==_G:
+			if read_tag_id_result[_B]==_G:
 				success=self.writeNumberToClassic(bytearray_number)
 				while success is _A:success=self.writeNumberToClassic(bytearray_number)
 		return success
 	def readTextFromTag(self):
 		text='';read_tag_id_result=self.readTagID()
-		while read_tag_id_result[_E]is _A:read_tag_id_result=self.readTagID();print(read_tag_id_result)
-		if read_tag_id_result[_C]==_F:text=self.readTextFromNtag()
-		if read_tag_id_result[_C]==_G:text=self.readTextFromClassic()
+		while read_tag_id_result[_D]is _A:read_tag_id_result=self.readTagID()
+		if read_tag_id_result[_B]==_F:text=self.readTextFromNtag()
+		if read_tag_id_result[_B]==_G:text=self.readTextFromClassic()
 		return text
 	def readNumberFromTag(self):
-		bytearray_number=_B;read_tag_id_result=self.readTagID()
-		while read_tag_id_result[_E]is _A:read_tag_id_result=self.readTagID()
-		if read_tag_id_result[_C]==_F:page_address=4;bytearray_number=self.read(page_address)
-		if read_tag_id_result[_C]==_G:register_address=1;bytearray_number=self.readTagData(register_address,_M,'')
+		bytearray_number=_E;read_tag_id_result=self.readTagID()
+		while read_tag_id_result[_D]is _A:read_tag_id_result=self.readTagID()
+		if read_tag_id_result[_B]==_F:page_address=4;bytearray_number=self.read(page_address)
+		if read_tag_id_result[_B]==_G:register_address=1;bytearray_number=self.readClassicData(register_address,'ints')
 		try:number=struct.unpack('l',bytes(bytearray_number));number=number[0];return number
 		except:print('Error reading card');return 0
 	def readId(self):tagId=self.readTagID();return tagId[_H]
-	def tagPresent(self):id=self.readTagID();return id[_E]
+	def tagPresent(self):id=self.readTagID();return id[_D]
