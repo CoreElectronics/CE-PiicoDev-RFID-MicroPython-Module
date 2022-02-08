@@ -1,39 +1,32 @@
-#ToDo write a function to detect card removal
+from PiicoDev_RFID import PiicoDev_RFID
+from PiicoDev_Unified import sleep_ms
 
-from PiicoDev_RFID import *
+rfid = PiicoDev_RFID()   # Initialise the RFID module
 
-cost = 95 # Always use ints when dealing with currency (cents)
+price = 3 # dollars (whole dollars only)
 
 rfid = PiicoDev_RFID()
 
-print('Place tag near the PiicoDev RFID Module to purchase for ', end='')
-cost_formatted = '${:,.2f}'.format(cost/100)
-print(cost_formatted)
+print('Place tag near the PiicoDev RFID Module to purchase for $' + str(price))
 print('')
 
-# Give credit
-topup = False
-if topup:
-    rfid.writeNumberToTag(10000) #cents
-    break_here
+rfid.writeNumber(100) # Give credit (whole dollars only)
 
 while True:
-    balance_previous = rfid.readNumberFromTag()
-    balance_previous_formatted = '${:,.2f}'.format(balance_previous/100)
-    print('Previous Balance: ', end=''); print(balance_previous_formatted)
+    balance_dollars = rfid.readNumberFromTag()
+    print('Previous Balance: $' + str(balance_dollars))
     
-    new_balance = balance_previous - cost
+    new_balance = balance_dollars - price
     
     if new_balance < 0:
         print('Not enough credit')
     
     if new_balance >= 0:
         print('Item dispensed')
-        success = rfid.writeNumberToTag(new_balance)
+        success = rfid.writeNumber(new_balance)
         
         new_balance = rfid.readNumberFromTag()
-        new_balance_formatted = '${:,.2f}'.format(new_balance/100)
-        print('New Balance: ', end=''); print(new_balance_formatted)
+        print('New Balance: $' + str(new_balance))
         
         # Wait for the user to remove the tag
         while rfid.tagPresent():
@@ -41,6 +34,4 @@ while True:
 
     sleep_ms(2000)
     print('')
-    print('Place tag near the PiicoDev RFID Module to purchase for ', end='')
-    cost_formatted = '${:,.2f}'.format(cost/100)
-    print(cost_formatted)
+    print('Place tag near the PiicoDev RFID Module to purchase for $' + str(price))
