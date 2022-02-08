@@ -1,3 +1,4 @@
+_M='Slot must be between 0 and 35'
 _L='Failed to select tag'
 _K='Authentication error'
 _J='present'
@@ -47,6 +48,8 @@ _TAG_CMD_ANTCOL1=147
 _TAG_CMD_ANTCOL2=149
 _TAG_CMD_ANTCOL3=151
 _NTAG_NO_BYTES_PER_PAGE=4
+_NTAG_PAGE_ADR_MIN=4
+_NTAG_PAGE_ADR_MAX=39
 _TAG_AUTH_KEY_A=96
 _CLASSIC_KEY=[255,255,255,255,255,255]
 _CLASSIC_NO_BYTES_PER_REG=16
@@ -59,16 +62,16 @@ def _writeBit(x,n,b):
 	else:return _setBit(x,n)
 def _writeCrumb(x,n,c):x=_writeBit(x,n,_readBit(c,0));return _writeBit(x,n+1,_readBit(c,1))
 class PiicoDev_RFID:
-	DEBUG=_A;OK=1;NOTAGERR=2;ERR=3
-	def __init__(self,bus=_E,freq=_E,sda=_E,scl=_E,addr=_I2C_ADDRESS):
+	OK=1;NOTAGERR=2;ERR=3
+	def __init__(self,bus=_E,freq=_E,sda=_E,scl=_E,address=_I2C_ADDRESS):
 		try:
 			if compat_ind>=1:0
 			else:print(compat_str)
 		except:print(compat_str)
-		self.i2c=create_unified_i2c(bus=bus,freq=freq,sda=sda,scl=scl);self.addr=addr;self._tag_present=_A;self._read_tag_id_success=_A;self.init()
-	def _wreg(self,reg,val):self.i2c.writeto_mem(self.addr,reg,bytes([val]))
-	def _wfifo(self,reg,val):self.i2c.writeto_mem(self.addr,reg,bytes(val))
-	def _rreg(self,reg):val=self.i2c.readfrom_mem(self.addr,reg,1);return val[0]
+		self.i2c=create_unified_i2c(bus=bus,freq=freq,sda=sda,scl=scl);self.address=address;self._tag_present=_A;self._read_tag_id_success=_A;self.init()
+	def _wreg(self,reg,val):self.i2c.writeto_mem(self.address,reg,bytes([val]))
+	def _wfifo(self,reg,val):self.i2c.writeto_mem(self.address,reg,bytes(val))
+	def _rreg(self,reg):val=self.i2c.readfrom_mem(self.address,reg,1);return val[0]
 	def _sflags(self,reg,mask):current_value=self._rreg(reg);self._wreg(reg,current_value|mask)
 	def _cflags(self,reg,mask):self._wreg(reg,self._rreg(reg)&~ mask)
 	def _tocard(self,cmd,send):
@@ -203,24 +206,24 @@ class PiicoDev_RFID:
 						else:print(_K);return _A
 					else:print(_L);return _A
 	def writeNumberToNtag(self,bytes_number,slot=0):
-		tag_write_success=_A;assert slot>=0 and slot<=35,'Slot must be between 0 and 35';page_adr_min=4;stat=self.ntagWrite(page_adr_min+slot,bytes_number);tag_write_success=_A
+		tag_write_success=_A;assert slot>=0 and slot<=35,_M;page_adr_min=4;stat=self.ntagWrite(page_adr_min+slot,bytes_number);tag_write_success=_A
 		if stat==self.OK:tag_write_success=_C
 		return tag_write_success
 	def writeNumberToClassic(self,bytes_number,slot=0):
-		assert slot>=0 and slot<=35,'Slot must be between 0 and 46'
+		assert slot>=0 and slot<=35,_M
 		while len(bytes_number)<_CLASSIC_NO_BYTES_PER_REG:bytes_number.append(0)
 		tag_write_success=self.writeTagDataClassic(_CLASSIC_ADR[slot],bytes_number);return tag_write_success
 	def readTextFromNtag(self):
-		page_adr_min=4;page_adr_max=39;page_adr=page_adr_min;total_string=''
-		while page_adr<=page_adr_max:raw_data=self.read(page_adr);page_text=''.join((chr(x)for x in raw_data));total_string=total_string+page_text;page_adr=page_adr+_NTAG_NO_BYTES_PER_PAGE
+		page_adr=_NTAG_PAGE_ADR_MIN;total_string=''
+		while page_adr<=_NTAG_PAGE_ADR_MAX:raw_data=self.read(page_adr);page_text=''.join((chr(x)for x in raw_data));total_string=total_string+page_text;page_adr=page_adr+_NTAG_NO_BYTES_PER_PAGE
 		return total_string
 	def readTextFromClassic(self):
 		adr_list=[1,2,4,5,6,8,9,10,12];buffer_start=0;x=0;total_string=''
 		for address in adr_list:reg_data=self.readClassicData(address);reg_text=''.join((chr(x)for x in reg_data));total_string=total_string+reg_text
 		return total_string
 	def writeTextToNtag(self,text):
-		page_adr_min=4;page_adr_max=39;buffer_start=0;page_adr=page_adr_min
-		while page_adr<=page_adr_max:
+		buffer_start=0;page_adr=_NTAG_PAGE_ADR_MIN
+		while page_adr<=_NTAG_PAGE_ADR_MAX:
 			data_chunk=text[buffer_start:buffer_start+_NTAG_NO_BYTES_PER_PAGE];buffer_start=buffer_start+_NTAG_NO_BYTES_PER_PAGE;data_byte_array=[ord(x)for x in list(data_chunk)];stat=self.ntagWrite(page_adr,data_byte_array);tag_write_success=_A
 			if stat==self.OK:tag_write_success=_C
 			page_adr=page_adr+1
