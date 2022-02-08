@@ -537,7 +537,7 @@ class PiicoDev_RFID(object):
             print('Error reading card')
             return 0
 
-    def readId(self):
+    def readID(self):
         tagId = self.readTagID()
         return tagId['id_formatted']
 

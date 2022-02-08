@@ -9,11 +9,11 @@ print('')
 
 while True:    
     if readerA.tagPresent():              # if an RFID tag is present on reader A
-        id = readerA.readId()             # get the id
+        id = readerA.readID()             # get the id
         print('Reader A ID: ' + str(id))  # print the id
         
     if readerB.tagPresent():              # if an RFID tag is present on reader B
-        id = readerB.readId()             # get the id
+        id = readerB.readID()             # get the id
         print('Reader B ID: ' + str(id))  # print the id
 
     sleep_ms(500)

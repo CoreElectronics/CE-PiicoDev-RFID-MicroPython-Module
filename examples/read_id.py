@@ -8,7 +8,7 @@ print('')
 
 while True:    
     if rfid.tagPresent():    # if an RFID tag is present
-        id = rfid.readId()   # get the id
+        id = rfid.readID()   # get the id
         print(id)            # print the id
 
     sleep_ms(100)
