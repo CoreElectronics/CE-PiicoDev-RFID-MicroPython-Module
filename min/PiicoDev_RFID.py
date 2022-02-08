@@ -46,7 +46,9 @@ _TAG_CMD_REQALL=82
 _TAG_CMD_ANTCOL1=147
 _TAG_CMD_ANTCOL2=149
 _TAG_CMD_ANTCOL3=151
+_NTAG_NO_BYTES_PER_PAGE=4
 _TAG_AUTH_KEY_A=96
+_CLASSIC_NO_BYTES_PER_REG=16
 def _readBit(x,n):return x&1<<n!=0
 def _setBit(x,n):return x|1<<n
 def _clearBit(x,n):return x&~(1<<n)
@@ -171,7 +173,7 @@ class PiicoDev_RFID:
 		type=_F
 		if len(id)==4:type=_G
 		return{_D:_success,_I:id,_H:id_formatted.upper(),_B:type}
-	def readClassicData(self,register,data_type):
+	def readClassicData(self,register):
 		tag_data=_E;auth_result=0
 		while tag_data is _E:
 			stat,tag_type=self.request(_TAG_CMD_REQIDL)
@@ -180,12 +182,7 @@ class PiicoDev_RFID:
 				if stat==self.OK:
 					if self.select_tag(raw_uid)==self.OK:
 						key=[255,255,255,255,255,255];auth_result=self.auth(_TAG_AUTH_KEY_A,register,key,raw_uid)
-						if auth_result==self.OK:
-							raw_data=self.read(register)
-							if raw_data is not _E:
-								if data_type is'text':tag_data=raw_data
-								if data_type is'ints':tag_data=raw_data
-							self.stop_crypto1();return tag_data
+						if auth_result==self.OK:tag_data=self.read(register);self.stop_crypto1();return tag_data
 						else:print(_K)
 					else:print(_L)
 			sleep_ms(10)
@@ -204,35 +201,35 @@ class PiicoDev_RFID:
 						else:print(_K);return _A
 					else:print(_L);return _A
 	def writeTextToNtag(self,text):
-		data=text;page_adr_min=4;page_adr_max=39;bytes_per_page=4;buffer_start=0;bytes_per_page=4;page_adr=page_adr_min
+		page_adr_min=4;page_adr_max=39;buffer_start=0;page_adr=page_adr_min
 		while page_adr<=page_adr_max:
-			data_chunk=data[buffer_start:buffer_start+bytes_per_page];buffer_start=buffer_start+bytes_per_page;data_byte_array=[ord(x)for x in list(data_chunk)];stat=self.nTAG2xxWrite(page_adr,data_byte_array);tag_write_success=_A
+			data_chunk=text[buffer_start:buffer_start+_NTAG_NO_BYTES_PER_PAGE];buffer_start=buffer_start+_NTAG_NO_BYTES_PER_PAGE;data_byte_array=[ord(x)for x in list(data_chunk)];stat=self.nTAG2xxWrite(page_adr,data_byte_array);tag_write_success=_A
 			if stat==self.OK:tag_write_success=_C
 			page_adr=page_adr+1
 		return tag_write_success
 	def writeNumberToNtag(self,bytes_number):
-		data=bytes_number;page_adr_min=4;page_adr_max=4;bytes_per_page=4;buffer_start=0;bytes_per_page=4;page_adr=page_adr_min
+		data=bytes_number;page_adr_min=4;page_adr_max=4;buffer_start=0;page_adr=page_adr_min
 		while page_adr<=page_adr_max:
-			data_chunk=data[buffer_start:buffer_start+bytes_per_page];buffer_start=buffer_start+bytes_per_page;data_byte_array=bytes_number;stat=self.nTAG2xxWrite(page_adr,data_byte_array);tag_write_success=_A
+			data_chunk=data[buffer_start:buffer_start+_NTAG_NO_BYTES_PER_PAGE];buffer_start=buffer_start+_NTAG_NO_BYTES_PER_PAGE;data_byte_array=bytes_number;stat=self.nTAG2xxWrite(page_adr,data_byte_array);tag_write_success=_A
 			if stat==self.OK:tag_write_success=_C
 			page_adr=page_adr+1
 		return tag_write_success
 	def readTextFromNtag(self):
-		page_adr_min=4;page_adr_max=39;bytes_per_page=4;buffer_start=0;bytes_per_page=4;page_adr=page_adr_min;total_string=''
-		while page_adr<=page_adr_max:raw_data=self.read(page_adr);page_text=''.join((chr(x)for x in raw_data));total_string=total_string+page_text;page_adr=page_adr+bytes_per_page
+		page_adr_min=4;page_adr_max=39;page_adr=page_adr_min;total_string=''
+		while page_adr<=page_adr_max:raw_data=self.read(page_adr);page_text=''.join((chr(x)for x in raw_data));total_string=total_string+page_text;page_adr=page_adr+_NTAG_NO_BYTES_PER_PAGE
 		return total_string
 	def writeTextToClassic(self,text):
-		data=text;adr_list=[1,2,4,5,6,8,9,10,12];buffer_start=0;bytes_per_adr=16;x=0
-		for address in adr_list:data_chunk=data[buffer_start:buffer_start+bytes_per_adr];buffer_start=buffer_start+bytes_per_adr;data_byte_array=[ord(x)for x in list(data_chunk)];tag_write_success=self.writeTagDataClassic(address,data_byte_array)
+		data=text;adr_list=[1,2,4,5,6,8,9,10,12];buffer_start=0;x=0
+		for address in adr_list:data_chunk=data[buffer_start:buffer_start+_CLASSIC_NO_BYTES_PER_REG];buffer_start=buffer_start+_CLASSIC_NO_BYTES_PER_REG;data_byte_array=[ord(x)for x in list(data_chunk)];tag_write_success=self.writeTagDataClassic(address,data_byte_array)
 		return tag_write_success
 	def writeNumberToClassic(self,bytes_number):
 		while len(bytes_number)<16:bytes_number.append(0)
-		adr_list=[1];buffer_start=0;bytes_per_adr=16;x=0
-		for address in adr_list:data_chunk=bytes_number[buffer_start:buffer_start+bytes_per_adr];buffer_start=buffer_start+bytes_per_adr;data_byte_array=bytes_number;tag_write_success=self.writeTagDataClassic(address,data_byte_array)
+		adr_list=[1];buffer_start=0;x=0
+		for address in adr_list:data_chunk=bytes_number[buffer_start:buffer_start+_CLASSIC_NO_BYTES_PER_REG];buffer_start=buffer_start+_CLASSIC_NO_BYTES_PER_REG;data_byte_array=bytes_number;tag_write_success=self.writeTagDataClassic(address,data_byte_array)
 		return tag_write_success
 	def readTextFromClassic(self):
-		adr_list=[1,2,4,5,6,8,9,10,12];buffer_start=0;bytes_per_adr=16;x=0;total_string=''
-		for address in adr_list:reg_data=self.readClassicData(address,'text');reg_text=''.join((chr(x)for x in reg_data));total_string=total_string+reg_text
+		adr_list=[1,2,4,5,6,8,9,10,12];buffer_start=0;x=0;total_string=''
+		for address in adr_list:reg_data=self.readClassicData(address);reg_text=''.join((chr(x)for x in reg_data));total_string=total_string+reg_text
 		return total_string
 	def readTagID(self):
 		detect_tag_result=self.detectTag()
@@ -269,7 +266,7 @@ class PiicoDev_RFID:
 		bytearray_number=_E;read_tag_id_result=self.readTagID()
 		while read_tag_id_result[_D]is _A:read_tag_id_result=self.readTagID()
 		if read_tag_id_result[_B]==_F:page_address=4;bytearray_number=self.read(page_address)
-		if read_tag_id_result[_B]==_G:register_address=1;bytearray_number=self.readClassicData(register_address,'ints')
+		if read_tag_id_result[_B]==_G:register_address=1;bytearray_number=self.readClassicData(register_address)
 		try:number=struct.unpack('l',bytes(bytearray_number));number=number[0];return number
 		except:print('Error reading card');return 0
 	def readId(self):tagId=self.readTagID();return tagId[_H]
