@@ -12,5 +12,3 @@ while True:
         print(id)            # print the id
 
     sleep_ms(100)
-
-
