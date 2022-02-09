@@ -4,6 +4,8 @@ from PiicoDev_Unified import sleep_ms
 rfid = PiicoDev_RFID()
 
 text = '0123456789 abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz 0123456789 0123456789 abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMN'
+#text = 'https://piico.dev/p16'
+#text = 'a'
 
 print('Place tag near the PiicoDev RFID Module')
 print('')
