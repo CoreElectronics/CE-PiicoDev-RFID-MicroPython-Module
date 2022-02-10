@@ -86,7 +86,7 @@ Parameter | Type | Range                          | Default                | Des
 text      | str  | 1 - 144 Characters             |                        | Text on the tag
 
 ### PiicoDev_RFID.readTagID()
-Reads the tag ID with more detailed information returned.
+Returns detailed information about the tag.
 Parameter | Type | Range | Description
 --- | --- | --- | ---
 **Returns** | **Dictionary**
