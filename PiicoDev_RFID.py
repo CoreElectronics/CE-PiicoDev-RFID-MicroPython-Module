@@ -428,8 +428,12 @@ class PiicoDev_RFID(object):
         total_string = ''
         while page_adr <= _NTAG_PAGE_ADR_MAX:
             raw_data = self.read(page_adr)
+            print(raw_data)
             page_text = "".join(chr(x) for x in raw_data)
             total_string = total_string + page_text
+            if 0 in raw_data: # Null found.  Job complete.
+                substring = total_string.split('\0')
+                return substring[0]
             page_adr = page_adr + _NTAG_NO_BYTES_PER_PAGE
         return total_string
 
@@ -440,6 +444,9 @@ class PiicoDev_RFID(object):
             reg_data = self.readClassicData(_CLASSIC_ADR[slot])
             reg_text = "".join(chr(x) for x in reg_data)
             total_string = total_string + reg_text
+            if 0 in reg_data: # Null found.  Job complete.
+                substring = total_string.split('\0')
+                return substring[0]
         return total_string
     
     def writeTextToNtag(self, text): # NTAG213
@@ -451,6 +458,8 @@ class PiicoDev_RFID(object):
             while len(data_byte_array) < _NTAG_NO_BYTES_PER_PAGE:
                 data_byte_array.append(0)
             tag_write_success = self.writePageNtag(page_adr, data_byte_array)
+            if 0 in data_byte_array: # Null found.  Job complete.
+                return tag_write_success
         return tag_write_success
     
     def writeTextToClassic(self, text):
@@ -463,7 +472,23 @@ class PiicoDev_RFID(object):
             while len(data_byte_array) < _CLASSIC_NO_BYTES_PER_REG:
                 data_byte_array.append(0)
             tag_write_success = self.writeClassicRegister(_CLASSIC_ADR[slot], data_byte_array)
+            if 0 in data_byte_array: # Null found.  Job complete.
+                return tag_write_success
         return tag_write_success
+    
+    def writeURL(self, url): # Currently only supported by NTAG213
+        is_ndef_message = chr(3)
+        ndef_length = chr(len(url) + 5)
+        ndef_record_header = chr(209)
+        ndef_type_length = chr(1)
+        ndef_payload_length = chr(len(url) + 1)
+        is_uri_record = chr(85)
+        record_type_indicator = chr(4) # https://
+        tlv_terminator = chr(254)
+        ndef = is_ndef_message + ndef_length + ndef_record_header + ndef_type_length + ndef_payload_length + is_uri_record + record_type_indicator + url + tlv_terminator
+        print(ndef)
+        success = self.writeText(ndef)
+        return success
     
     def readTagID(self):
         detect_tag_result = self.detectTag()
@@ -488,7 +513,7 @@ class PiicoDev_RFID(object):
             success = self.writeTextToClassic(text)
         return success
 
-    def writeNumber(self, number, slot=0):
+    def writeNumber(self, number, slot=35):
         success = False
         bytearray_number = bytearray(struct.pack('l', number))
         read_tag_id_result = self.readTagID()
@@ -516,7 +541,7 @@ class PiicoDev_RFID(object):
             text = self.readTextFromClassic()
         return text
     
-    def readNumber(self, slot=0):
+    def readNumber(self, slot=35):
         bytearray_number = None
         read_tag_id_result = self.readTagID()
         while read_tag_id_result['success'] is False:
