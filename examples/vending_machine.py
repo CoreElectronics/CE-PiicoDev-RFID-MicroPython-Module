@@ -13,7 +13,7 @@ print('')
 rfid.writeNumber(100) # Give credit (whole dollars only)
 
 while True:
-    balance_dollars = rfid.readNumberFromTag()
+    balance_dollars = rfid.readNumber()
     print('Previous Balance: $' + str(balance_dollars))
     
     new_balance = balance_dollars - price
@@ -25,7 +25,7 @@ while True:
         print('Item dispensed')
         success = rfid.writeNumber(new_balance)
         
-        new_balance = rfid.readNumberFromTag()
+        new_balance = rfid.readNumber()
         print('New Balance: $' + str(new_balance))
         
         # Wait for the user to remove the tag
