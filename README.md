@@ -42,7 +42,7 @@ scl | Pin | Device Dependent | Device Dependent | I2C SCL Pin. Implemented on Ra
 addr | int | 0x2C, 0x2D, 0x2E, 0x2F | 0x2C | This address needs to match the PiicoDev RFID Module ASW microswitches:<br>[OFF:OFF] 0x2C<br>[ON :OFF] 0x2D<br>[OFF:ON ] 0x2E<br>[ON :ON ] 0x2F
 
 ### PiicoDev_RFID.tagPresent()
-Detects is there is a tag present.
+Detects a tag present.
 Returned Type | Description
 --- | ---
 bool | True if a tag is detected
