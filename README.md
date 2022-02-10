@@ -55,14 +55,14 @@ str | 11 or 20 characters | Returns the ID in a format XX:XX:XX:XX:XX:XX:XX for 
 Parameter | Type | Range                          | Default                | Description
 ---       | ---  | ---                            | -------                | -----------
 number    | int  | −2,147,483,647, +2,147,483,647 |       
-slot      | int  | 0 - 35                         | 0
+slot      | int  | 0 - 35                         | 35
 **return**|
 bool      | bool |                                |                        | True if tag write successful
 
-### PiicoDev_RFID.readNumber(slot=0)
+### PiicoDev_RFID.readNumber(slot=35)
 Parameter | Type | Range                          | Default                | Description
 ---       | ---  | ---                            | ---                    | ---
-slot      | int  | 0 - 35                         | 0                      | 
+slot      | int  | 0 - 35                         | 35                     | 
 **return**|
 number    | int  | −2,147,483,647, +2,147,483,647 |                        | Number at slot 0
 
@@ -73,12 +73,11 @@ text      | str  | 1 - 144 Characters |
 **return**|
 bool      | bool |                                |                        | True if tag write successful
 
-### PiicoDev_RFID.readText(slot=0)
+### PiicoDev_RFID.readText()
 Parameter | Type | Range                          | Default                | Description
 ---       | ---  | ---                            | ---                    | ---
-slot      | int  | 0 - 35                         | 0                      | 
 **return**|
-text      | str  | 1 - 144 Characters | | Text on the tag
+text      | str  | 1 - 144 Characters             |                        | Text on the tag
 
 ### PiicoDev_RFID.readTagID()
 Parameter | Type | Range | Description
