@@ -42,45 +42,51 @@ scl | Pin | Device Dependent | Device Dependent | I2C SCL Pin. Implemented on Ra
 addr | int | 0x2C, 0x2D, 0x2E, 0x2F | 0x2C | This address needs to match the PiicoDev RFID Module ASW microswitches:<br>[OFF:OFF] 0x2C<br>[ON :OFF] 0x2D<br>[OFF:ON ] 0x2E<br>[ON :ON ] 0x2F
 
 ### PiicoDev_RFID.tagPresent()
+Detects a tag.
 Returned Type | Description
 --- | ---
 bool | True if a tag is detected
 
-### PiicoDev_RFID.readId()
+### PiicoDev_RFID.readID()
+Reads the tag ID.
 Returned Type | Range | Description
 --- | --- | ---
 str | 11 or 20 characters | Returns the ID in a format XX:XX:XX:XX:XX:XX:XX for NTAG213 and XX:XX:XX:XX for Classic
 
-### PiicoDev_RFID.writeNumber(int, slot=0)
+### PiicoDev_RFID.writeNumber(int, slot=35)
+Writes a number to a slot in the tag's memory.  Each slot is mapped to an appropriate location on the tag's memory.
 Parameter | Type | Range                          | Default                | Description
 ---       | ---  | ---                            | -------                | -----------
 number    | int  | −2,147,483,647, +2,147,483,647 |       
-slot      | int  | 0 - 35                         | 0
+slot      | int  | 0 - 35                         | 35
 **return**|
 bool      | bool |                                |                        | True if tag write successful
 
-### PiicoDev_RFID.readNumber(slot=0)
+### PiicoDev_RFID.readNumber(slot=35)
+Reads a number from a slot in the tag's memory.  Each slot is mapped to an appropriate location on the tag's memory.
 Parameter | Type | Range                          | Default                | Description
 ---       | ---  | ---                            | ---                    | ---
-slot      | int  | 0 - 35                         | 0                      | 
+slot      | int  | 0 - 35                         | 35                     | 
 **return**|
 number    | int  | −2,147,483,647, +2,147,483,647 |                        | Number at slot 0
 
 ### PiicoDev_RFID.writeText(str)
+Writes text to the tag.
 Parameter | Type | Range                          | Default                | Description
 ---       | ---  | ---                            | -------                | -----------
 text      | str  | 1 - 144 Characters |       
 **return**|
 bool      | bool |                                |                        | True if tag write successful
 
-### PiicoDev_RFID.readText(slot=0)
+### PiicoDev_RFID.readText()
+Reads text from the tag.
 Parameter | Type | Range                          | Default                | Description
 ---       | ---  | ---                            | ---                    | ---
-slot      | int  | 0 - 35                         | 0                      | 
 **return**|
-text      | str  | 1 - 144 Characters | | Text on the tag
+text      | str  | 1 - 144 Characters             |                        | Text on the tag
 
 ### PiicoDev_RFID.readTagID()
+Returns detailed information about the tag.
 Parameter | Type | Range | Description
 --- | --- | --- | ---
 **Returns** | **Dictionary**

@@ -54,6 +54,8 @@ _TAG_AUTH_KEY_A=96
 _CLASSIC_KEY=[255,255,255,255,255,255]
 _CLASSIC_NO_BYTES_PER_REG=16
 _CLASSIC_ADR=[1,2,4,5,6,8,9,10,12,13,14,16,17,18,20,21,22,24,25,26,28,29,30,32,33,34,36,37,38,40,41,42,44,45,46,48]
+_SLOT_NO_MIN=0
+_SLOT_NO_MAX=35
 def _readBit(x,n):return x&1<<n!=0
 def _setBit(x,n):return x|1<<n
 def _clearBit(x,n):return x&~(1<<n)
@@ -136,11 +138,11 @@ class PiicoDev_RFID:
 		if not stat==self.OK or not bits==4 or not recv[0]&15==10:stat=self.ERR
 		else:
 			buf=[]
-			for i in range(16):buf.append(data[i])
+			for i in range(_CLASSIC_NO_BYTES_PER_REG):buf.append(data[i])
 			buf+=self._crc(buf);stat,recv,bits=self._tocard(_CMD_TRANCEIVE,buf)
 			if not stat==self.OK or not bits==4 or not recv[0]&15==10:stat=self.ERR
 		return stat
-	def ntagWrite(self,page,data):buf=[162,page];buf+=data;buf+=self._crc(buf);stat,recv,bits=self._tocard(_CMD_TRANCEIVE,buf);return stat
+	def writePageNtag(self,page,data):buf=[162,page];buf+=data;buf+=self._crc(buf);stat,recv,bits=self._tocard(_CMD_TRANCEIVE,buf);return stat
 	def SelfTest(self):self.reset();self._wreg(_REG_FIFO_DATA,bytes([25]));self._wreg(_REG_AUTO_TEST,9);self._wreg(_REG_FIFO_DATA,0);self._wreg(_REG_COMMAND,_CMD_CALC_CRC);sleep_ms(1000);test_output=self.i2c.readfrom_mem(self.addr,_REG_FIFO_DATA,64);version=self.i2c.readfrom_mem(self.addr,_REG_VERSION,1)
 	def readID(self):stat,bits=self.request(_TAG_CMD_REQIDL);return stat,bits
 	def SelectTagSN(self):
@@ -191,7 +193,7 @@ class PiicoDev_RFID:
 						else:print(_K)
 					else:print(_L)
 			sleep_ms(10)
-	def writeTagDataClassic(self,register,data_byte_array):
+	def writeClassicRegister(self,register,data_byte_array):
 		while _C:
 			auth_result=0;stat,tag_type=self.request(_TAG_CMD_REQIDL)
 			if stat==self.OK:
@@ -206,31 +208,34 @@ class PiicoDev_RFID:
 						else:print(_K);return _A
 					else:print(_L);return _A
 	def writeNumberToNtag(self,bytes_number,slot=0):
-		tag_write_success=_A;assert slot>=0 and slot<=35,_M;page_adr_min=4;stat=self.ntagWrite(page_adr_min+slot,bytes_number);tag_write_success=_A
+		tag_write_success=_A;assert slot>=_SLOT_NO_MIN and slot<=_SLOT_NO_MAX,_M;page_adr_min=4;stat=self.writePageNtag(page_adr_min+slot,bytes_number);tag_write_success=_A
 		if stat==self.OK:tag_write_success=_C
 		return tag_write_success
 	def writeNumberToClassic(self,bytes_number,slot=0):
-		assert slot>=0 and slot<=35,_M
+		assert slot>=_SLOT_NO_MIN and slot<=_SLOT_NO_MAX,_M
 		while len(bytes_number)<_CLASSIC_NO_BYTES_PER_REG:bytes_number.append(0)
-		tag_write_success=self.writeTagDataClassic(_CLASSIC_ADR[slot],bytes_number);return tag_write_success
+		tag_write_success=self.writeClassicRegister(_CLASSIC_ADR[slot],bytes_number);return tag_write_success
 	def readTextFromNtag(self):
 		page_adr=_NTAG_PAGE_ADR_MIN;total_string=''
 		while page_adr<=_NTAG_PAGE_ADR_MAX:raw_data=self.read(page_adr);page_text=''.join((chr(x)for x in raw_data));total_string=total_string+page_text;page_adr=page_adr+_NTAG_NO_BYTES_PER_PAGE
 		return total_string
 	def readTextFromClassic(self):
-		adr_list=[1,2,4,5,6,8,9,10,12];buffer_start=0;x=0;total_string=''
-		for address in adr_list:reg_data=self.readClassicData(address);reg_text=''.join((chr(x)for x in reg_data));total_string=total_string+reg_text
+		x=0;total_string=''
+		for slot in range(9):reg_data=self.readClassicData(_CLASSIC_ADR[slot]);reg_text=''.join((chr(x)for x in reg_data));total_string=total_string+reg_text
 		return total_string
 	def writeTextToNtag(self,text):
-		buffer_start=0;page_adr=_NTAG_PAGE_ADR_MIN
-		while page_adr<=_NTAG_PAGE_ADR_MAX:
-			data_chunk=text[buffer_start:buffer_start+_NTAG_NO_BYTES_PER_PAGE];buffer_start=buffer_start+_NTAG_NO_BYTES_PER_PAGE;data_byte_array=[ord(x)for x in list(data_chunk)];stat=self.ntagWrite(page_adr,data_byte_array);tag_write_success=_A
-			if stat==self.OK:tag_write_success=_C
-			page_adr=page_adr+1
+		buffer_start=0
+		for page_adr in range(_NTAG_PAGE_ADR_MIN,_NTAG_PAGE_ADR_MAX):
+			data_chunk=text[buffer_start:buffer_start+_NTAG_NO_BYTES_PER_PAGE];buffer_start=buffer_start+_NTAG_NO_BYTES_PER_PAGE;data_byte_array=[ord(x)for x in list(data_chunk)]
+			while len(data_byte_array)<_NTAG_NO_BYTES_PER_PAGE:data_byte_array.append(0)
+			tag_write_success=self.writePageNtag(page_adr,data_byte_array)
 		return tag_write_success
 	def writeTextToClassic(self,text):
-		adr_list=[1,2,4,5,6,8,9,10,12];buffer_start=0;x=0
-		for address in adr_list:data_chunk=text[buffer_start:buffer_start+_CLASSIC_NO_BYTES_PER_REG];buffer_start=buffer_start+_CLASSIC_NO_BYTES_PER_REG;data_byte_array=[ord(x)for x in list(data_chunk)];tag_write_success=self.writeTagDataClassic(address,data_byte_array)
+		buffer_start=0;x=0
+		for slot in range(9):
+			data_chunk=text[buffer_start:buffer_start+_CLASSIC_NO_BYTES_PER_REG];buffer_start=buffer_start+_CLASSIC_NO_BYTES_PER_REG;data_byte_array=[ord(x)for x in list(data_chunk)]
+			while len(data_byte_array)<_CLASSIC_NO_BYTES_PER_REG:data_byte_array.append(0)
+			tag_write_success=self.writeClassicRegister(_CLASSIC_ADR[slot],data_byte_array)
 		return tag_write_success
 	def readTagID(self):
 		detect_tag_result=self.detectTag()
@@ -240,9 +245,7 @@ class PiicoDev_RFID:
 			if read_tag_id_result[_D]:self._read_tag_id_success=_C;return{_D:read_tag_id_result[_D],_I:read_tag_id_result[_I],_H:read_tag_id_result[_H],_B:read_tag_id_result[_B]}
 		self._read_tag_id_success=_A;return{_D:_A,_I:[0],_H:'',_B:''}
 	def writeText(self,text):
-		success=_A;maximum_characters=144
-		while len(text)<maximum_characters:text=text+' '
-		read_tag_id_result=self.readTagID()
+		success=_A;maximum_characters=144;text=text+'\x00';read_tag_id_result=self.readTagID()
 		if read_tag_id_result[_B]==_F:success=self.writeTextToNtag(text)
 		if read_tag_id_result[_B]==_G:success=self.writeTextToClassic(text)
 		return success
