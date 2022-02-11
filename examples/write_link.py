@@ -10,12 +10,10 @@ uri = 'https://www.core-electronics.com.au'
 
 while True:
     if rfid.tagPresent():
-        success = rfid.writeURL(uri)
+        #success = rfid.writeLink(uri)
         #success = rfid.writeURL(url, protocol='http')
-        success = rfid.writeURL('mailto:support@core-electronics.com.au')
+        success = rfid.writeLink('mailto:support@core-electronics.com.au')
         if success:
-            text_read = rfid.readText()
-            print('Text in tag:')
-            print(text_read)
+            print('Write successful')
             break
     sleep_ms(10)
