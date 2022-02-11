@@ -6,11 +6,13 @@ rfid = PiicoDev_RFID()
 print('Place tag near the PiicoDev RFID Module')
 print('')
 
-url = 'www.core-electronics.com.au'
+uri = 'https://www.core-electronics.com.au'
 
 while True:
     if rfid.tagPresent():
-        success = rfid.writeURL(url)
+        success = rfid.writeURL(uri)
+        #success = rfid.writeURL(url, protocol='http')
+        success = rfid.writeURL('mailto:support@core-electronics.com.au')
         if success:
             text_read = rfid.readText()
             print('Text in tag:')
