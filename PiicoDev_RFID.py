@@ -6,6 +6,7 @@
 # https://stackoverflow.com/questions/4286447/how-to-calculate-the-crc-in-rfid-protocol
 
 from PiicoDev_Unified import *
+from PiicoDev_RFID_expansion import *
 import struct
 
 compat_str = '\nUnified PiicoDev library out of date.  Get the latest module: https://piico.dev/unified \n'
@@ -81,7 +82,7 @@ def _writeCrumb(x, n, c):
     x = _writeBit(x, n, _readBit(c, 0))
     return _writeBit(x, n+1, _readBit(c, 1))
 
-class PiicoDev_RFID(object):
+class PiicoDev_RFID_Base(object):
     OK = 1
     NOTAGERR = 2
     ERR = 3
@@ -444,12 +445,13 @@ class PiicoDev_RFID(object):
             reg_data = self.readClassicData(_CLASSIC_ADR[slot])
             reg_text = "".join(chr(x) for x in reg_data)
             total_string = total_string + reg_text
+            print(reg_data)
             if 0 in reg_data: # Null found.  Job complete.
                 substring = total_string.split('\0')
                 return substring[0]
         return total_string
     
-    def writeTextToNtag(self, text): # NTAG213
+    def writeTextToNtag(self, text, ignore_null=False): # NTAG213
         buffer_start = 0
         for page_adr in range (_NTAG_PAGE_ADR_MIN,_NTAG_PAGE_ADR_MAX):
             data_chunk = text[buffer_start:buffer_start+_NTAG_NO_BYTES_PER_PAGE]
@@ -458,11 +460,12 @@ class PiicoDev_RFID(object):
             while len(data_byte_array) < _NTAG_NO_BYTES_PER_PAGE:
                 data_byte_array.append(0)
             tag_write_success = self.writePageNtag(page_adr, data_byte_array)
-            if 0 in data_byte_array: # Null found.  Job complete.
-                return tag_write_success
+            if ignore_null is False:
+                if 0 in data_byte_array: # Null found.  Job complete.
+                    return tag_write_success
         return tag_write_success
     
-    def writeTextToClassic(self, text):
+    def writeTextToClassic(self, text, ignore_null=False):
         buffer_start = 0
         x = 0
         for slot in range(9):
@@ -472,23 +475,10 @@ class PiicoDev_RFID(object):
             while len(data_byte_array) < _CLASSIC_NO_BYTES_PER_REG:
                 data_byte_array.append(0)
             tag_write_success = self.writeClassicRegister(_CLASSIC_ADR[slot], data_byte_array)
-            if 0 in data_byte_array: # Null found.  Job complete.
-                return tag_write_success
+            if ignore_null is False:
+                if 0 in data_byte_array: # Null found.  Job complete.
+                    return tag_write_success
         return tag_write_success
-    
-    def writeURL(self, url): # Currently only supported by NTAG213
-        is_ndef_message = chr(3)
-        ndef_length = chr(len(url) + 5)
-        ndef_record_header = chr(209)
-        ndef_type_length = chr(1)
-        ndef_payload_length = chr(len(url) + 1)
-        is_uri_record = chr(85)
-        record_type_indicator = chr(4) # https://
-        tlv_terminator = chr(254)
-        ndef = is_ndef_message + ndef_length + ndef_record_header + ndef_type_length + ndef_payload_length + is_uri_record + record_type_indicator + url + tlv_terminator
-        print(ndef)
-        success = self.writeText(ndef)
-        return success
     
     def readTagID(self):
         detect_tag_result = self.detectTag()
@@ -502,15 +492,15 @@ class PiicoDev_RFID(object):
         self._read_tag_id_success = False
         return {'success':False, 'id_integers':[0], 'id_formatted':'', 'type':''}
     
-    def writeText(self, text):
+    def writeText(self, text, ignore_null=False):
         success = False
         maximum_characters = 144
         text = text + '\0'
         read_tag_id_result = self.readTagID()
         if read_tag_id_result['type'] == 'ntag':
-            success = self.writeTextToNtag(text)
+            success = self.writeTextToNtag(text, ignore_null=ignore_null)
         if read_tag_id_result['type'] == 'classic':
-            success = self.writeTextToClassic(text)
+            success = self.writeTextToClassic(text, ignore_null=ignore_null)
         return success
 
     def writeNumber(self, number, slot=35):
