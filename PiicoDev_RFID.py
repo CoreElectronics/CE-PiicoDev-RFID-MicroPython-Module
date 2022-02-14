@@ -16,6 +16,7 @@ _I2C_ADDRESS        = 0x2C
 
 _REG_COMMAND        = 0x01
 _REG_COM_I_EN       = 0x02
+_REG_DIV_I_EN       = 0x03
 _REG_COM_IRQ        = 0x04
 _REG_DIV_IRQ        = 0x05
 _REG_ERROR          = 0x06
@@ -101,6 +102,8 @@ class PiicoDev_RFID(object):
         self._wreg(_REG_T_RELOAD_LO, 0xE8)
         self._wreg(_REG_TX_ASK, 0x40)
         self._wreg(_REG_MODE, 0x3D)
+        self._wreg(_REG_DIV_I_EN, 0x80) # CMOS Logic for IRQ pin
+        self._wreg(_REG_COM_I_EN, 0x20) # allows the receiver interrupt request (RxIRq bit) to be propagated to pin IRQ
         self.antenna_on()
         if _SYSNAME is 'microbit' and not suppress_warnings:
             print('This library can only be used to get tag IDs.\nAdvanced methods such as reading and wring to tag memory are not available on Micro:bit due to the limited storage available.\nTo run advanced methods, use a Raspberry Pi Pico instead of Micro:bit.\nTo suppress this warning, initialise with PiicoDev_RFID(suppress_warnings=True)\n')
