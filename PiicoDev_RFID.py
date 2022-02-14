@@ -10,6 +10,8 @@ import struct
 
 compat_str = '\nUnified PiicoDev library out of date.  Get the latest module: https://piico.dev/unified \n'
 
+_SYSNAME = os.uname().sysname
+
 _I2C_ADDRESS        = 0x2C
 
 _REG_COMMAND        = 0x01
@@ -79,7 +81,7 @@ class PiicoDev_RFID(object):
     NOTAGERR = 2
     ERR = 3
 
-    def __init__(self, bus=None, freq=None, sda=None, scl=None, address=_I2C_ADDRESS):
+    def __init__(self, bus=None, freq=None, sda=None, scl=None, address=_I2C_ADDRESS, suppress_warnings=False):
         try:
             if compat_ind >= 1:
                 pass
@@ -91,7 +93,17 @@ class PiicoDev_RFID(object):
         self.address = address
         self._tag_present = False
         self._read_tag_id_success = False
-        self.init()
+        self.reset()
+        sleep_ms(50)
+        self._wreg(_REG_T_MODE, 0x80)
+        self._wreg(_REG_T_PRESCALER, 0xA9)
+        self._wreg(_REG_T_RELOAD_HI, 0x03)
+        self._wreg(_REG_T_RELOAD_LO, 0xE8)
+        self._wreg(_REG_TX_ASK, 0x40)
+        self._wreg(_REG_MODE, 0x3D)
+        self.antenna_on()
+        if _SYSNAME is 'microbit' and not suppress_warnings:
+            print('This library can only be used to get tag IDs.\nAdvanced methods such as reading and wring to tag memory are not available on Micro:bit due to the limited storage available.\nTo run advanced methods, use a Raspberry Pi Pico instead of Micro:bit.\nTo suppress this warning, initialise with PiicoDev_RFID(suppress_warnings=True)\n')
 
     def _wreg(self, reg, val):
         self.i2c.writeto_mem(self.address, reg, bytes([val]))
@@ -184,17 +196,6 @@ class PiicoDev_RFID(object):
                 break
         self._wreg(_REG_COMMAND, _CMD_IDLE)
         return [self._rreg(_REG_CRC_RESULT_LSB), self._rreg(_REG_CRC_RESULT_MSB)]
-
-    def init(self):
-        self.reset()
-        sleep_ms(50)
-        self._wreg(_REG_T_MODE, 0x80)
-        self._wreg(_REG_T_PRESCALER, 0xA9)
-        self._wreg(_REG_T_RELOAD_HI, 0x03)
-        self._wreg(_REG_T_RELOAD_LO, 0xE8)
-        self._wreg(_REG_TX_ASK, 0x40)
-        self._wreg(_REG_MODE, 0x3D)
-        self.antenna_on()
 
     def reset(self):
         self._wreg(_REG_COMMAND, _CMD_SOFT_RESET)
@@ -403,7 +404,6 @@ class PiicoDev_RFID(object):
         id = self.readTagID()
         return id['success']
     
-    _SYSNAME = os.uname().sysname
     if _SYSNAME != 'microbit':
         try:
             from PiicoDev_RFID_Expansion import classicWrite, writeNumberToNtag, writeNumberToClassic, writeNumber, readNumber, writeTextToNtag, writeTextToClassic, writeText, readTextFromNtag, readTextFromClassic, readText, writeLink 
