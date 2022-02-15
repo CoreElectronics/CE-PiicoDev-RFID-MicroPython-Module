@@ -1,5 +1,6 @@
-_J='Failed to select tag'
-_I='Authentication error'
+_K='Failed to select tag'
+_J='Authentication error'
+_I='microbit'
 _H='present'
 _G='type'
 _F='id_integers'
@@ -11,6 +12,7 @@ _A=False
 from PiicoDev_Unified import *
 import struct
 compat_str='\nUnified PiicoDev library out of date.  Get the latest module: https://piico.dev/unified \n'
+_SYSNAME=os.uname().sysname
 _I2C_ADDRESS=44
 _REG_COMMAND=1
 _REG_COM_I_EN=2
@@ -57,12 +59,13 @@ def _writeBit(x,n,b):
 def _writeCrumb(x,n,c):x=_writeBit(x,n,_readBit(c,0));return _writeBit(x,n+1,_readBit(c,1))
 class PiicoDev_RFID:
 	OK=1;NOTAGERR=2;ERR=3
-	def __init__(self,bus=_C,freq=_C,sda=_C,scl=_C,address=_I2C_ADDRESS):
+	def __init__(self,bus=_C,freq=_C,sda=_C,scl=_C,address=_I2C_ADDRESS,suppress_warnings=_A):
 		try:
 			if compat_ind>=1:0
 			else:print(compat_str)
 		except:print(compat_str)
-		self.i2c=create_unified_i2c(bus=bus,freq=freq,sda=sda,scl=scl);self.address=address;self._tag_present=_A;self._read_tag_id_success=_A;self.init()
+		self.i2c=create_unified_i2c(bus=bus,freq=freq,sda=sda,scl=scl);self.address=address;self._tag_present=_A;self._read_tag_id_success=_A;self.reset();sleep_ms(50);self._wreg(_REG_T_MODE,128);self._wreg(_REG_T_PRESCALER,169);self._wreg(_REG_T_RELOAD_HI,3);self._wreg(_REG_T_RELOAD_LO,232);self._wreg(_REG_TX_ASK,64);self._wreg(_REG_MODE,61);self.antenna_on()
+		if _SYSNAME is _I and not suppress_warnings:print('This library can only be used to get tag IDs.\nAdvanced methods such as reading and wring to tag memory are not available on Micro:bit due to the limited storage available.\nTo run advanced methods, use a Raspberry Pi Pico instead of Micro:bit.\nTo suppress this warning, initialise with PiicoDev_RFID(suppress_warnings=True)\n')
 	def _wreg(self,reg,val):self.i2c.writeto_mem(self.address,reg,bytes([val]))
 	def _wfifo(self,reg,val):self.i2c.writeto_mem(self.address,reg,bytes(val))
 	def _rreg(self,reg):val=self.i2c.readfrom_mem(self.address,reg,1);return val[0]
@@ -104,7 +107,6 @@ class PiicoDev_RFID:
 			n=self._rreg(_REG_DIV_IRQ);i-=1
 			if not(i!=0 and not n&4):break
 		self._wreg(_REG_COMMAND,_CMD_IDLE);return[self._rreg(_REG_CRC_RESULT_LSB),self._rreg(_REG_CRC_RESULT_MSB)]
-	def init(self):self.reset();sleep_ms(50);self._wreg(_REG_T_MODE,128);self._wreg(_REG_T_PRESCALER,169);self._wreg(_REG_T_RELOAD_HI,3);self._wreg(_REG_T_RELOAD_LO,232);self._wreg(_REG_TX_ASK,64);self._wreg(_REG_MODE,61);self.antenna_on()
 	def reset(self):self._wreg(_REG_COMMAND,_CMD_SOFT_RESET)
 	def antenna_on(self,on=_B):
 		if on and~(self._rreg(_REG_TX_CONTROL)&3):self._sflags(_REG_TX_CONTROL,131)
@@ -175,8 +177,8 @@ class PiicoDev_RFID:
 							stat=self.classicWrite(register,data_byte_array);self.stop_crypto1()
 							if stat==self.OK:return _B
 							else:print('Failed to write data to tag');return _A
-						else:print(_I);return _A
-					else:print(_J);return _A
+						else:print(_J);return _A
+					else:print(_K);return _A
 	def readClassicData(self,register):
 		tag_data=_C;auth_result=0
 		while tag_data is _C:
@@ -187,8 +189,8 @@ class PiicoDev_RFID:
 					if self.select_tag(raw_uid)==self.OK:
 						auth_result=self.auth(_TAG_AUTH_KEY_A,register,_CLASSIC_KEY,raw_uid)
 						if auth_result==self.OK:tag_data=self.read(register);self.stop_crypto1();return tag_data
-						else:print(_I)
-					else:print(_J)
+						else:print(_J)
+					else:print(_K)
 			sleep_ms(10)
 	def readTagID(self):
 		detect_tag_result=self.detectTag()
@@ -199,7 +201,6 @@ class PiicoDev_RFID:
 		self._read_tag_id_success=_A;return{_D:_A,_F:[0],_E:'',_G:''}
 	def readID(self):tagId=self.readTagID();return tagId[_E]
 	def tagPresent(self):id=self.readTagID();return id[_D]
-	_SYSNAME=os.uname().sysname
-	if _SYSNAME!='microbit':
+	if _SYSNAME!=_I:
 		try:from PiicoDev_RFID_Expansion import classicWrite,writeNumberToNtag,writeNumberToClassic,writeNumber,readNumber,writeTextToNtag,writeTextToClassic,writeText,readTextFromNtag,readTextFromClassic,readText,writeLink
 		except:print('Install PiicoDev_RFID_Expansion.py for full functionality')
