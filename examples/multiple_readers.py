@@ -1,8 +1,8 @@
 from PiicoDev_RFID import PiicoDev_RFID
 from PiicoDev_Unified import sleep_ms
 
-readerA = PiicoDev_RFID(suppress_warnings=True)                 # Initialise the first RFID module as reader A with default address 0x2D
-readerB = PiicoDev_RFID(address=0x2D, suppress_warnings=True)     # Initialise the second RFID module as reader B
+readerA = PiicoDev_RFID()                 # Initialise the first RFID module as reader A with default address 0x2D
+readerB = PiicoDev_RFID(address=0x2D)     # Initialise the second RFID module as reader B
 
 print('Place tag near one of the PiicoDev RFID Modules')
 print('')

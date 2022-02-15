@@ -1,7 +1,7 @@
 from PiicoDev_RFID import PiicoDev_RFID
 from PiicoDev_Unified import sleep_ms
 
-rfid = PiicoDev_RFID(suppress_warnings=True)   # Initialise the RFID module
+rfid = PiicoDev_RFID()   # Initialise the RFID module
 
 print('Place tag near the PiicoDev RFID Module')
 print('')
