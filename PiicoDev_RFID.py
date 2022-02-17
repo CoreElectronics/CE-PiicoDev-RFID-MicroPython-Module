@@ -6,7 +6,6 @@
 # https://stackoverflow.com/questions/4286447/how-to-calculate-the-crc-in-rfid-protocol
 
 from PiicoDev_Unified import *
-import struct
 
 compat_str = '\nUnified PiicoDev library out of date.  Get the latest module: https://piico.dev/unified \n'
 
@@ -53,10 +52,6 @@ _TAG_CMD_ANTCOL3 = 0x97
 # Classic
 _TAG_AUTH_KEY_A = 0x60
 _CLASSIC_KEY = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]
-
-# PiicoDev Merge NTAG & Classic
-_SLOT_NO_MIN = 0
-_SLOT_NO_MAX = 35
 
 def _readBit(x, n):
     return x & 1 << n != 0
@@ -105,7 +100,7 @@ class PiicoDev_RFID(object):
         self._wreg(_REG_DIV_I_EN, 0x80) # CMOS Logic for IRQ pin
         self._wreg(_REG_COM_I_EN, 0x20) # allows the receiver interrupt request (RxIRq bit) to be propagated to pin IRQ
         self.antenna_on()
-        if _SYSNAME is 'microbit' and not suppress_warnings:
+        if _SYSNAME == 'microbit' and not suppress_warnings:
             print('This library can only be used to get tag IDs.\nAdvanced methods such as reading and wring to tag memory are not available on Micro:bit due to the limited storage available.\nTo run advanced methods, use a Raspberry Pi Pico instead of Micro:bit.\nTo suppress this warning, initialise with PiicoDev_RFID(suppress_warnings=True)\n')
 
     def _wreg(self, reg, val):

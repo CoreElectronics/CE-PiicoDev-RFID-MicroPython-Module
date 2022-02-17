@@ -1,3 +1,5 @@
+import struct
+
 _CMD_TRANCEIVE = 0x0C
 
 # NTAG
@@ -9,7 +11,9 @@ _NTAG_PAGE_ADR_MAX = 39
 _CLASSIC_NO_BYTES_PER_REG = 16
 _CLASSIC_ADR = [1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14, 16, 17, 18, 20, 21, 22, 24, 25, 26, 28, 29, 30, 32, 33, 34, 36, 37, 38, 40, 41, 42, 44, 45, 46, 48]
 
-
+# PiicoDev Merge NTAG & Classic
+_SLOT_NO_MIN = 0
+_SLOT_NO_MAX = 35
 # ----------------------------- Write -------------------------------------------------
 
 def classicWrite(self, addr, data):
@@ -79,7 +83,7 @@ def readNumber(self, slot=35):
         bytearray_number = self.readClassicData(_CLASSIC_ADR[slot])
     
     try:
-        number = struct.unpack('l', bytes(bytearray_number))
+        number = struct.unpack('l', bytes(bytearray_number[:4]))
         number = number[0]
         return number
     except:
