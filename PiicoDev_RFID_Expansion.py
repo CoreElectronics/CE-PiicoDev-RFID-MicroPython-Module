@@ -14,6 +14,7 @@ _CLASSIC_ADR = [1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14, 16, 17, 18, 20, 21, 22, 24,
 # PiicoDev Merge NTAG & Classic
 _SLOT_NO_MIN = 0
 _SLOT_NO_MAX = 35
+
 # ----------------------------- Write -------------------------------------------------
 
 def classicWrite(self, addr, data):
@@ -94,7 +95,7 @@ def readNumber(self, slot=35):
 
 def writeTextToNtag(self, text, ignore_null=False): # NTAG213
     buffer_start = 0
-    for page_adr in range (_NTAG_PAGE_ADR_MIN,_NTAG_PAGE_ADR_MAX):
+    for page_adr in range (_NTAG_PAGE_ADR_MIN,_NTAG_PAGE_ADR_MAX+1):
         data_chunk = text[buffer_start:buffer_start+_NTAG_NO_BYTES_PER_PAGE]
         buffer_start = buffer_start + _NTAG_NO_BYTES_PER_PAGE
         data_byte_array = [ord(x) for x in list(data_chunk)]
@@ -135,14 +136,12 @@ def writeText(self, text, ignore_null=False):
 # ----------------------------- Read Text --------------------------------------------
 
 def readTextFromNtag(self):
-    page_adr = _NTAG_PAGE_ADR_MIN
     total_string = ''
-    while page_adr <= _NTAG_PAGE_ADR_MAX:
-        raw_data = self.read(page_adr)
-        print(raw_data)
-        page_text = "".join(chr(x) for x in raw_data)
+    for page_adr in range (_NTAG_PAGE_ADR_MIN,_NTAG_PAGE_ADR_MAX+1):
+        page_data = self.read(page_adr)[:4]
+        page_text = "".join(chr(x) for x in page_data)
         total_string = total_string + page_text
-        if 0 in raw_data: # Null found.  Job complete.
+        if 0 in page_data: # Null found.  Job complete.
             substring = total_string.split('\0')
             return substring[0]
         page_adr = page_adr + _NTAG_NO_BYTES_PER_PAGE
@@ -155,7 +154,6 @@ def readTextFromClassic(self):
         reg_data = self.readClassicData(_CLASSIC_ADR[slot])
         reg_text = "".join(chr(x) for x in reg_data)
         total_string = total_string + reg_text
-        print(reg_data)
         if 0 in reg_data: # Null found.  Job complete.
             substring = total_string.split('\0')
             return substring[0]
@@ -184,6 +182,5 @@ def writeLink(self, uri): # Currently only supported by NTAG213
     record_type_indicator = chr(0)
     tlv_terminator = chr(254)
     ndef = is_ndef_message + ndef_length + ndef_record_header + ndef_type_length + ndef_payload_length + is_uri_record + record_type_indicator + uri + tlv_terminator
-    print(ndef)
     success = self.writeText(ndef, ignore_null=True)
     return success
