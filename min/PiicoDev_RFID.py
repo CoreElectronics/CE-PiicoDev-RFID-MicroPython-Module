@@ -10,7 +10,6 @@ _C=None
 _B=True
 _A=False
 from PiicoDev_Unified import *
-import struct
 compat_str='\nUnified PiicoDev library out of date.  Get the latest module: https://piico.dev/unified \n'
 _SYSNAME=os.uname().sysname
 _I2C_ADDRESS=44
@@ -49,8 +48,6 @@ _TAG_CMD_ANTCOL2=149
 _TAG_CMD_ANTCOL3=151
 _TAG_AUTH_KEY_A=96
 _CLASSIC_KEY=[255,255,255,255,255,255]
-_SLOT_NO_MIN=0
-_SLOT_NO_MAX=35
 def _readBit(x,n):return x&1<<n!=0
 def _setBit(x,n):return x|1<<n
 def _clearBit(x,n):return x&~(1<<n)
@@ -66,7 +63,7 @@ class PiicoDev_RFID:
 			else:print(compat_str)
 		except:print(compat_str)
 		self.i2c=create_unified_i2c(bus=bus,freq=freq,sda=sda,scl=scl);self.address=address;self._tag_present=_A;self._read_tag_id_success=_A;self.reset();sleep_ms(50);self._wreg(_REG_T_MODE,128);self._wreg(_REG_T_PRESCALER,169);self._wreg(_REG_T_RELOAD_HI,3);self._wreg(_REG_T_RELOAD_LO,232);self._wreg(_REG_TX_ASK,64);self._wreg(_REG_MODE,61);self._wreg(_REG_DIV_I_EN,128);self._wreg(_REG_COM_I_EN,32);self.antenna_on()
-		if _SYSNAME is _I and not suppress_warnings:print('This library can only be used to get tag IDs.\nAdvanced methods such as reading and wring to tag memory are not available on Micro:bit due to the limited storage available.\nTo run advanced methods, use a Raspberry Pi Pico instead of Micro:bit.\nTo suppress this warning, initialise with PiicoDev_RFID(suppress_warnings=True)\n')
+		if _SYSNAME==_I and not suppress_warnings:print('This library can only be used to get tag IDs.\nAdvanced methods such as reading and wring to tag memory are not available on Micro:bit due to the limited storage available.\nTo run advanced methods, use a Raspberry Pi Pico instead of Micro:bit.\nTo suppress this warning, initialise with PiicoDev_RFID(suppress_warnings=True)\n')
 	def _wreg(self,reg,val):self.i2c.writeto_mem(self.address,reg,bytes([val]))
 	def _wfifo(self,reg,val):self.i2c.writeto_mem(self.address,reg,bytes(val))
 	def _rreg(self,reg):val=self.i2c.readfrom_mem(self.address,reg,1);return val[0]
