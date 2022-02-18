@@ -51,6 +51,7 @@ def _classicStopCrypto(self):
 
 # ----------------------------- Write -------------------------------------------------
 
+# Write to an NTAG page
 def _writePageNtag(self, page, data):
     buf = [0xA2, page]
     buf += data
@@ -58,6 +59,7 @@ def _writePageNtag(self, page, data):
     (stat, recv, bits) = self._tocard(_CMD_TRANCEIVE, buf)
     return stat
 
+# Write to a Classic register
 def _classicWrite(self, addr, data):
     buf = [0xA0, addr]
     buf += self._crc(buf)
@@ -74,6 +76,7 @@ def _classicWrite(self, addr, data):
             stat = self.ERR
     return stat
 
+# Prepare a Classic to write to a register
 def _writeClassicRegister(self, register, data_byte_array):
     while True:
         auth_result = 0
@@ -101,12 +104,15 @@ def _writeClassicRegister(self, register, data_byte_array):
                     return False   
 
 # ------------------------------ Read ----------------------------------------------------
+
+# Read a register from NTAG or Classic
 def _read(self, addr):
     data = [0x30, addr]
     data += self._crc(data)
     (stat, recv, _) = self._tocard(_CMD_TRANCEIVE, data)
     return recv if stat == self.OK else None
 
+# Prepare a classic to read a register
 def _readClassicData(self, register):
     tag_data = None
     auth_result = 0
