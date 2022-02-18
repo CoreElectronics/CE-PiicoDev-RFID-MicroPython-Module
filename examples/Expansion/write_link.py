@@ -6,7 +6,7 @@ rfid = PiicoDev_RFID()
 print('Place tag near the PiicoDev RFID Module')
 print('')
 
-uri = 'https://www.google.com.au'
+uri = 'https://piico.dev/p16'
 
 while True:
     if rfid.tagPresent():
