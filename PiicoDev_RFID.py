@@ -1,9 +1,12 @@
-# https://github.com/semaf/MFRC522_I2C_Library/blob/master/src/MFRC522_I2C.cpp
-# https://github.com/wendlers/micropython-mfrc522/blob/master/mfrc522.py
-# https://www.nxp.com/docs/en/data-sheet/MFRC522.pdf
-# https://stackoverflow.com/questions/36915264/writing-ntag213-mifare-ultralight-c-with-mxgxw-mfrc522-python-library-and-mfrc
+# Enables the reading of tag IDs using the Core Electronics PiicoDev RFID Module
+# Ported by Peter Johnston at Core Electronics February 2022
+# Original Repos:
+# 2021-12-01:
+# https://github.com/semaf/MFRC522_I2C_Library
+# 2021-12-01:
+# https://github.com/wendlers/micropython-mfrc522
+# 2021-12-01:
 # https://github.com/mxgxw/MFRC522-python
-# https://stackoverflow.com/questions/4286447/how-to-calculate-the-crc-in-rfid-protocol
 
 from PiicoDev_Unified import *
 
