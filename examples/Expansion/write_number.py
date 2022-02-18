@@ -4,7 +4,7 @@ from PiicoDev_Unified import sleep_ms
 rfid = PiicoDev_RFID()
 
 slot = 35
-number = 1
+number = 2
 
 print('Place tag near the PiicoDev RFID Module')
 print('')
