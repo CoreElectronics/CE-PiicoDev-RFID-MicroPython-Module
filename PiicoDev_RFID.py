@@ -86,24 +86,30 @@ class PiicoDev_RFID(object):
         self.antenna_on()
         if _SYSNAME == 'microbit' and not suppress_warnings:
             print('This library can only be used to get tag IDs.\nAdvanced methods such as reading and wring to tag memory are not available on Micro:bit due to the limited storage available.\nTo run advanced methods, use a Raspberry Pi Pico instead of Micro:bit.\nTo suppress this warning, initialise with PiicoDev_RFID(suppress_warnings=True)\n')
-
+    
+    # I2C write to register
     def _wreg(self, reg, val):
         self.i2c.writeto_mem(self.address, reg, bytes([val]))
 
+    # I2C write to FIFO buffer
     def _wfifo(self, reg, val):
         self.i2c.writeto_mem(self.address, reg, bytes(val))
 
+    # I2C read from register
     def _rreg(self, reg):
         val = self.i2c.readfrom_mem(self.address, reg, 1)
         return val[0]
     
+    # Set register flags
     def _sflags(self, reg, mask):
         current_value = self._rreg(reg)
         self._wreg(reg, current_value | mask)
 
+    # Clear register flags
     def _cflags(self, reg, mask):
         self._wreg(reg, self._rreg(reg) & (~mask))
 
+    # Communicates with the tag
     def _tocard(self, cmd, send):
         recv = []
         bits = irq_en = wait_irq = n = 0
@@ -115,10 +121,10 @@ class PiicoDev_RFID(object):
         elif cmd == _CMD_TRANCEIVE:
             irq_en = 0x77
             wait_irq = 0x30
-        self._wreg(_REG_COMMAND, _CMD_IDLE) # Stop any active command.
-        self._wreg(_REG_COM_IRQ, 0x7F)      # Clear all seven interrupt request bits
-        self._sflags(_REG_FIFO_LEVEL, 0x80) # FlushBuffer = 1, FIFO initialization
-        self._wfifo(_REG_FIFO_DATA, send)   # Write to the FIFO
+        self._wreg(_REG_COMMAND, _CMD_IDLE)      # Stop any active command.
+        self._wreg(_REG_COM_IRQ, 0x7F)           # Clear all seven interrupt request bits
+        self._sflags(_REG_FIFO_LEVEL, 0x80)      # FlushBuffer = 1, FIFO initialization
+        self._wfifo(_REG_FIFO_DATA, send)        # Write to the FIFO
         if cmd == _CMD_TRANCEIVE:
             self._sflags(_REG_BIT_FRAMING, 0x00) # This starts the transceive operation
         self._wreg(_REG_COMMAND, cmd)
@@ -161,6 +167,7 @@ class PiicoDev_RFID(object):
                 stat = self.ERR
         return stat, recv, bits
 
+    # Use the co-processor on the RFID module to obtain CRC
     def _crc(self, data):
         self._wreg(_REG_COMMAND, _CMD_IDLE)
         self._cflags(_REG_DIV_IRQ, 0x04)
@@ -178,7 +185,8 @@ class PiicoDev_RFID(object):
                 break
         self._wreg(_REG_COMMAND, _CMD_IDLE)
         return [self._rreg(_REG_CRC_RESULT_LSB), self._rreg(_REG_CRC_RESULT_MSB)]
-              
+    
+    # Invites tag in state IDLE to go to READY
     def _request(self, mode):
         self._wreg(_REG_BIT_FRAMING, 0x07)
         (stat, recv, bits) = self._tocard(_CMD_TRANCEIVE, [mode])
@@ -186,6 +194,7 @@ class PiicoDev_RFID(object):
             stat = self.ERR
         return stat, bits
 
+    # Perform anticollision check
     def _anticoll(self, anticolN=_TAG_CMD_ANTCOL1):
         ser_chk = 0
         ser = [anticolN, 0x20]
@@ -201,46 +210,9 @@ class PiicoDev_RFID(object):
             else:
                 stat = self.ERR
         return stat, recv
-
-    def _select_tag(self, ser):
-        buf = [0x93, 0x70] + ser[:5]
-        buf += self._crc(buf)
-        (stat, recv, bits) = self._tocard(_CMD_TRANCEIVE, buf)
-        return self.OK if (stat == self.OK) and (bits == 0x18) else self.ERR
-
-    def _auth(self, mode, addr, sect, ser):
-        return self._tocard(_CMD_MF_AUTHENT, [mode, addr] + sect + ser[:4])[0]
-
-    def _stop_crypto1(self):
-        self._cflags(_REG_STATUS_2, 0x08)
     
-    def _SelectTagSN(self):
-        valid_uid=[]
-        (status,uid)= self._anticoll(_TAG_CMD_ANTCOL1)
-        if status != self.OK:
-            return  (self.ERR,[])
-        
-        if self._PcdSelect(uid,_TAG_CMD_ANTCOL1) == 0:
-            return (self.ERR,[])
-        
-        if uid[0] == 0x88 : # NTAG
-            valid_uid.extend(uid[1:4])
-            (status,uid)=self._anticoll(_TAG_CMD_ANTCOL2)
-            if status != self.OK:
-                return (self.ERR,[])
-            rtn =  self._PcdSelect(uid,_TAG_CMD_ANTCOL2)
-            if rtn == 0:
-                return (self.ERR,[])
-            #now check again if uid[0] is 0x88
-            if uid[0] == 0x88 :
-                valid_uid.extend(uid[1:4])
-                (status , uid) = self._anticoll(_TAG_CMD_ANTCOL3)
-                if status != self.OK:
-                    return (self.ERR,[])
-        valid_uid.extend(uid[0:5])
-        return (self.OK , valid_uid[:len(valid_uid)-1])
-    
-    def _PcdSelect(self, serNum,anticolN):
+    # Select the desired tag
+    def _selectTag(self, serNum,anticolN):
         backData = []
         buf = []
         buf.append(anticolN)
@@ -255,21 +227,35 @@ class PiicoDev_RFID(object):
             return  1
         else:
             return 0
-        
-    def _detectTag(self):
-        (stat, ATQA) = self._request(_TAG_CMD_REQIDL)
-        _present = False
-        if stat is self.OK:
-            _present = True
-        self._tag_present = _present
-        return {'present':_present, 'ATQA':ATQA}
-
+    
+    # Returns detailed information about the tag 
     def _readTagID(self):
-        (stat, id) = self._SelectTagSN()
-        _success = True
-        if stat is self.OK:
-            _success = True
+        result = {'success':False, 'id_integers':[], 'id_formatted':'', 'type':''}
+        valid_uid=[]
+        (status,uid)= self._anticoll(_TAG_CMD_ANTCOL1)
+        if status != self.OK:
+            return result
+        
+        if self._selectTag(uid,_TAG_CMD_ANTCOL1) == 0:
+            return result
+        
+        if uid[0] == 0x88 : # NTAG
+            valid_uid.extend(uid[1:4])
+            (status,uid)=self._anticoll(_TAG_CMD_ANTCOL2)
+            if status != self.OK:
+                return result
+            rtn =  self._selectTag(uid,_TAG_CMD_ANTCOL2)
+            if rtn == 0:
+                return result
+            #now check again if uid[0] is 0x88
+            if uid[0] == 0x88 :
+                valid_uid.extend(uid[1:4])
+                (status , uid) = self._anticoll(_TAG_CMD_ANTCOL3)
+                if status != self.OK:
+                    return result
+        valid_uid.extend(uid[0:5])
         id_formatted = ''
+        id = valid_uid[:len(valid_uid)-1]
         for i in range(0,len(id)):
             if i > 0:
                 id_formatted = id_formatted + ':'
@@ -279,17 +265,30 @@ class PiicoDev_RFID(object):
         type = 'ntag'
         if len(id) == 4:
             type = 'classic'
-        return {'success':_success, 'id_integers':id, 'id_formatted':id_formatted.upper(), 'type':type}
-
+        return {'success':True, 'id_integers':id, 'id_formatted':id_formatted.upper(), 'type':type}
+    
+    # Detect the presence of a tag
+    def _detectTag(self):
+        (stat, ATQA) = self._request(_TAG_CMD_REQIDL)
+        _present = False
+        if stat is self.OK:
+            _present = True
+        self._tag_present = _present
+        return {'present':_present, 'ATQA':ATQA}
+    
+    # Resets the RFID module
     def reset(self):
         self._wreg(_REG_COMMAND, _CMD_SOFT_RESET)
 
+    # Turns the antenna on or off
     def antenna_on(self, on=True):
         if on and ~(self._rreg(_REG_TX_CONTROL) & 0x03):
             self._sflags(_REG_TX_CONTROL, 0x83)
         else:
             self._cflags(_REG_TX_CONTROL, b'\x03')
 
+    # Stand-alone function that puts the tag into the correct state
+    # Returns detailed information about the tag
     def readTagID(self):
         detect_tag_result = self._detectTag()
         if detect_tag_result['present'] is False: #Try again, the card may not be in the correct state
@@ -302,16 +301,19 @@ class PiicoDev_RFID(object):
         self._read_tag_id_success = False
         return {'success':False, 'id_integers':[0], 'id_formatted':'', 'type':''}
 
+    # Wrapper for readTagID
     def readID(self):
         tagId = self.readTagID()
         return tagId['id_formatted']
 
+    # Wrapper for readTagID
     def tagPresent(self):
         id = self.readTagID()
         return id['success']
     
+    # Use PiicoDev_RFID_Expansion if not Micro:bit
     if _SYSNAME != 'microbit':
         try:
-            from PiicoDev_RFID_Expansion import _writePageNtag, _classicWrite, _writeClassicRegister, _read, _readClassicData, _writeNumberToNtag, _writeNumberToClassic, writeNumber, readNumber, _writeTextToNtag, _writeTextToClassic, writeText, _readTextFromNtag, _readTextFromClassic, readText, writeLink 
+            from PiicoDev_RFID_Expansion import _classicSelectTag, _classicAuth, _classicStopCrypto, _writePageNtag, _classicWrite, _writeClassicRegister, _read, _readClassicData, _writeNumberToNtag, _writeNumberToClassic, writeNumber, readNumber, _writeTextToNtag, _writeTextToClassic, writeText, _readTextFromNtag, _readTextFromClassic, readText, writeLink 
         except:
             print('Install PiicoDev_RFID_Expansion.py for full functionality')
