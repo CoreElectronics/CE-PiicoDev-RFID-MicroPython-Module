@@ -63,7 +63,16 @@ id_formatted | str | length 11 or 20 | ID in a format XX:XX:XX:XX:XX:XX:XX for N
 type | str | 'ntag' or 'classic' | 
 success | bool | | True if the operation is successful
 
-## Advanced methods
+### `PiicoDev_RFID.antenna_on(on=True)`
+Set the state of the antenna.  For normal operation this method does not need to be called.
+Parameter | Type | Default | Description
+--- | --- | --- | ---
+antenna state | bool | True | Turn the antenna on or off
+
+### `PiicoDev_RFID.reset()`
+Reset the RFID Module.  For normal operation this method does not need to be called.
+
+## Expansion methods
 The methods listed below require the `PiicoDev_RFID_Expansion.py` file to be placed in the same directory as `PiicoDev_RFID.py`.  They are only available for Raspberry Pi and Raspberry Pi Pico.  There is not enough program storage to run these methods on a Micro:bit.
 
 ### `PiicoDev_RFID.writeNumber(int, slot=35)`

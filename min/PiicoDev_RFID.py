@@ -126,7 +126,6 @@ class PiicoDev_RFID:
 	def stop_crypto1(self):self._cflags(_REG_STATUS_2,8)
 	def read(self,addr):data=[48,addr];data+=self._crc(data);stat,recv,_=self._tocard(_CMD_TRANCEIVE,data);return recv if stat==self.OK else _C
 	def writePageNtag(self,page,data):buf=[162,page];buf+=data;buf+=self._crc(buf);stat,recv,bits=self._tocard(_CMD_TRANCEIVE,buf);return stat
-	def SelfTest(self):self.reset();self._wreg(_REG_FIFO_DATA,bytes([25]));self._wreg(_REG_AUTO_TEST,9);self._wreg(_REG_FIFO_DATA,0);self._wreg(_REG_COMMAND,_CMD_CALC_CRC);sleep_ms(1000);test_output=self.i2c.readfrom_mem(self.addr,_REG_FIFO_DATA,64);version=self.i2c.readfrom_mem(self.addr,_REG_VERSION,1)
 	def readID(self):stat,bits=self.request(_TAG_CMD_REQIDL);return stat,bits
 	def SelectTagSN(self):
 		valid_uid=[];status,uid=self.anticoll(_TAG_CMD_ANTCOL1)
