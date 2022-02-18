@@ -1,6 +1,10 @@
+from PiicoDev_Unified import *
 import struct
 
 _CMD_TRANCEIVE = 0x0C
+
+# RFID Tag (Proximity Integrated Circuit Card)
+_TAG_CMD_REQIDL  = 0x26
 
 # NTAG
 _NTAG_NO_BYTES_PER_PAGE = 4
@@ -8,6 +12,8 @@ _NTAG_PAGE_ADR_MIN = 4 # user memory is 4 to 39 for NTAG213 so that allows for 1
 _NTAG_PAGE_ADR_MAX = 39
 
 # Classic
+_TAG_AUTH_KEY_A = 0x60
+_CLASSIC_KEY = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]
 _CLASSIC_NO_BYTES_PER_REG = 16
 _CLASSIC_ADR = [1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14, 16, 17, 18, 20, 21, 22, 24, 25, 26, 28, 29, 30, 32, 33, 34, 36, 37, 38, 40, 41, 42, 44, 45, 46, 48]
 
@@ -17,7 +23,14 @@ _SLOT_NO_MAX = 35
 
 # ----------------------------- Write -------------------------------------------------
 
-def classicWrite(self, addr, data):
+def _writePageNtag(self, page, data):
+    buf = [0xA2, page]
+    buf += data
+    buf += self._crc(buf)
+    (stat, recv, bits) = self._tocard(_CMD_TRANCEIVE, buf)
+    return stat
+
+def _classicWrite(self, addr, data):
     buf = [0xA0, addr]
     buf += self._crc(buf)
     (stat, recv, bits) = self._tocard(_CMD_TRANCEIVE, buf)
@@ -33,23 +46,76 @@ def classicWrite(self, addr, data):
             stat = self.ERR
     return stat
 
+def _writeClassicRegister(self, register, data_byte_array):
+    while True:
+        auth_result = 0
+        (stat, tag_type) = self._request(_TAG_CMD_REQIDL)
+
+        if stat == self.OK:
+            (stat, raw_uid) = self._anticoll()
+
+            if stat == self.OK:
+                if self._select_tag(raw_uid) == self.OK:
+                    auth_result = self._auth(_TAG_AUTH_KEY_A, register, _CLASSIC_KEY, raw_uid)
+                    if (auth_result == self.OK):
+                        stat = self._classicWrite(register, data_byte_array)
+                        self._stop_crypto1()
+                        if stat == self.OK:
+                            return True
+                        else:
+                            print("Failed to write data to tag")
+                            return False
+                    else:
+                        print("Authentication error")
+                        return False
+                else:
+                    print("Failed to select tag")
+                    return False   
+
+# ------------------------------ Read ----------------------------------------------------
+def _read(self, addr):
+    data = [0x30, addr]
+    data += self._crc(data)
+    (stat, recv, _) = self._tocard(_CMD_TRANCEIVE, data)
+    return recv if stat == self.OK else None
+
+def _readClassicData(self, register):
+    tag_data = None
+    auth_result = 0
+    while tag_data is None:
+        (stat, tag_type) = self._request(_TAG_CMD_REQIDL)
+        if stat == self.OK:
+            (stat, raw_uid) = self._anticoll()
+            if stat == self.OK:
+                if self._select_tag(raw_uid) == self.OK:
+                    auth_result = self._auth(_TAG_AUTH_KEY_A, register, _CLASSIC_KEY, raw_uid)
+                    if (auth_result == self.OK):
+                        tag_data = self._read(register)
+                        self._stop_crypto1()
+                        return tag_data
+                    else:
+                        print("Authentication error")
+                else:
+                    print("Failed to select tag")
+        sleep_ms(10)
+
 # ----------------------------- Write Number --------------------------------------------
 
-def writeNumberToNtag(self, bytes_number, slot=0):
+def _writeNumberToNtag(self, bytes_number, slot=0):
     tag_write_success = False
     assert slot >= _SLOT_NO_MIN and slot <=_SLOT_NO_MAX, 'Slot must be between 0 and 35'
     page_adr_min = 4
-    stat = self.writePageNtag(page_adr_min+slot, bytes_number)
+    stat = self._writePageNtag(page_adr_min+slot, bytes_number)
     tag_write_success = False
     if stat == self.OK:
         tag_write_success = True
     return tag_write_success
 
-def writeNumberToClassic(self, bytes_number, slot=0):
+def _writeNumberToClassic(self, bytes_number, slot=0):
     assert slot >= _SLOT_NO_MIN and slot <=_SLOT_NO_MAX, 'Slot must be between 0 and 35'
     while len(bytes_number) < _CLASSIC_NO_BYTES_PER_REG:
         bytes_number.append(0)
-    tag_write_success = self.writeClassicRegister(_CLASSIC_ADR[slot], bytes_number)
+    tag_write_success = self._writeClassicRegister(_CLASSIC_ADR[slot], bytes_number)
     return tag_write_success
 
 def writeNumber(self, number, slot=35):
@@ -60,13 +126,13 @@ def writeNumber(self, number, slot=35):
         read_tag_id_result = self.readTagID()
     if read_tag_id_result['success']:
         if read_tag_id_result['type'] == 'ntag':
-            success = self.writeNumberToNtag(bytearray_number, slot)
+            success = self._writeNumberToNtag(bytearray_number, slot)
             while success is False:
-                success = self.writeNumberToNtag(bytearray_number, slot)
+                success = self._writeNumberToNtag(bytearray_number, slot)
         if read_tag_id_result['type'] == 'classic':
-            success = self.writeNumberToClassic(bytearray_number, slot)
+            success = self._writeNumberToClassic(bytearray_number, slot)
             while success is False:
-                success = self.writeNumberToClassic(bytearray_number, slot)
+                success = self._writeNumberToClassic(bytearray_number, slot)
     return success
 
 # ----------------------------- Read Number --------------------------------------------
@@ -78,10 +144,10 @@ def readNumber(self, slot=35):
         read_tag_id_result = self.readTagID()
     if read_tag_id_result['type'] == 'ntag':
         page_address = 4
-        bytearray_number = self.read(page_address+slot)
+        bytearray_number = self._read(page_address+slot)
 
     if read_tag_id_result['type'] == 'classic':
-        bytearray_number = self.readClassicData(_CLASSIC_ADR[slot])
+        bytearray_number = self._readClassicData(_CLASSIC_ADR[slot])
     
     try:
         number = struct.unpack('l', bytes(bytearray_number[:4]))
@@ -93,7 +159,7 @@ def readNumber(self, slot=35):
 
 # ----------------------------- Write Text --------------------------------------------
 
-def writeTextToNtag(self, text, ignore_null=False): # NTAG213
+def _writeTextToNtag(self, text, ignore_null=False): # NTAG213
     buffer_start = 0
     for page_adr in range (_NTAG_PAGE_ADR_MIN,_NTAG_PAGE_ADR_MAX+1):
         data_chunk = text[buffer_start:buffer_start+_NTAG_NO_BYTES_PER_PAGE]
@@ -101,13 +167,13 @@ def writeTextToNtag(self, text, ignore_null=False): # NTAG213
         data_byte_array = [ord(x) for x in list(data_chunk)]
         while len(data_byte_array) < _NTAG_NO_BYTES_PER_PAGE:
             data_byte_array.append(0)
-        tag_write_success = self.writePageNtag(page_adr, data_byte_array)
+        tag_write_success = self._writePageNtag(page_adr, data_byte_array)
         if ignore_null is False:
             if 0 in data_byte_array: # Null found.  Job complete.
                 return tag_write_success
     return tag_write_success
 
-def writeTextToClassic(self, text, ignore_null=False):
+def _writeTextToClassic(self, text, ignore_null=False):
     buffer_start = 0
     x = 0
     for slot in range(9):
@@ -116,7 +182,7 @@ def writeTextToClassic(self, text, ignore_null=False):
         data_byte_array = [ord(x) for x in list(data_chunk)]
         while len(data_byte_array) < _CLASSIC_NO_BYTES_PER_REG:
             data_byte_array.append(0)
-        tag_write_success = self.writeClassicRegister(_CLASSIC_ADR[slot], data_byte_array)
+        tag_write_success = self._writeClassicRegister(_CLASSIC_ADR[slot], data_byte_array)
         if ignore_null is False:
             if 0 in data_byte_array: # Null found.  Job complete.
                 return tag_write_success
@@ -128,17 +194,17 @@ def writeText(self, text, ignore_null=False):
     text = text + '\0'
     read_tag_id_result = self.readTagID()
     if read_tag_id_result['type'] == 'ntag':
-        success = self.writeTextToNtag(text, ignore_null=ignore_null)
+        success = self._writeTextToNtag(text, ignore_null=ignore_null)
     if read_tag_id_result['type'] == 'classic':
-        success = self.writeTextToClassic(text, ignore_null=ignore_null)
+        success = self._writeTextToClassic(text, ignore_null=ignore_null)
     return success
 
 # ----------------------------- Read Text --------------------------------------------
 
-def readTextFromNtag(self):
+def _readTextFromNtag(self):
     total_string = ''
     for page_adr in range (_NTAG_PAGE_ADR_MIN,_NTAG_PAGE_ADR_MAX+1):
-        page_data = self.read(page_adr)[:4]
+        page_data = self._read(page_adr)[:4]
         page_text = "".join(chr(x) for x in page_data)
         total_string = total_string + page_text
         if 0 in page_data: # Null found.  Job complete.
@@ -147,11 +213,11 @@ def readTextFromNtag(self):
         page_adr = page_adr + _NTAG_NO_BYTES_PER_PAGE
     return total_string
 
-def readTextFromClassic(self):
+def _readTextFromClassic(self):
     x = 0
     total_string = ''
     for slot in range(9):
-        reg_data = self.readClassicData(_CLASSIC_ADR[slot])
+        reg_data = self._readClassicData(_CLASSIC_ADR[slot])
         reg_text = "".join(chr(x) for x in reg_data)
         total_string = total_string + reg_text
         if 0 in reg_data: # Null found.  Job complete.
@@ -165,9 +231,9 @@ def readText(self):
     while read_tag_id_result['success'] is False:
         read_tag_id_result = self.readTagID()
     if read_tag_id_result['type'] == 'ntag':
-        text = self.readTextFromNtag()
+        text = self._readTextFromNtag()
     if read_tag_id_result['type'] == 'classic':
-        text = self.readTextFromClassic()
+        text = self._readTextFromClassic()
     return text
 
 # ----------------------------- Write Link --------------------------------------------

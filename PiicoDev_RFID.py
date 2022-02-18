@@ -53,25 +53,6 @@ _TAG_CMD_ANTCOL3 = 0x97
 _TAG_AUTH_KEY_A = 0x60
 _CLASSIC_KEY = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]
 
-def _readBit(x, n):
-    return x & 1 << n != 0
-
-def _setBit(x, n):
-    return x | (1 << n)
-
-def _clearBit(x, n):
-    return x & ~(1 << n)
-
-def _writeBit(x, n, b):
-    if b == 0:
-        return _clearBit(x, n)
-    else:
-        return _setBit(x, n)
-
-def _writeCrumb(x, n, c):
-    x = _writeBit(x, n, _readBit(c, 0))
-    return _writeBit(x, n+1, _readBit(c, 1))
-
 class PiicoDev_RFID(object):
     OK = 1
     NOTAGERR = 2
@@ -194,25 +175,15 @@ class PiicoDev_RFID(object):
                 break
         self._wreg(_REG_COMMAND, _CMD_IDLE)
         return [self._rreg(_REG_CRC_RESULT_LSB), self._rreg(_REG_CRC_RESULT_MSB)]
-
-    def reset(self):
-        self._wreg(_REG_COMMAND, _CMD_SOFT_RESET)
-
-    def antenna_on(self, on=True):
-        if on and ~(self._rreg(_REG_TX_CONTROL) & 0x03):
-            self._sflags(_REG_TX_CONTROL, 0x83)
-        else:
-            self._cflags(_REG_TX_CONTROL, b'\x03')
               
-    def request(self, mode):
+    def _request(self, mode):
         self._wreg(_REG_BIT_FRAMING, 0x07)
         (stat, recv, bits) = self._tocard(_CMD_TRANCEIVE, [mode])
         if (stat != self.OK) | (bits != 0x10):
             stat = self.ERR
-
         return stat, bits
 
-    def anticoll(self, anticolN=_TAG_CMD_ANTCOL1):
+    def _anticoll(self, anticolN=_TAG_CMD_ANTCOL1):
         ser_chk = 0
         ser = [anticolN, 0x20]
 
@@ -228,64 +199,45 @@ class PiicoDev_RFID(object):
                 stat = self.ERR
         return stat, recv
 
-    def select_tag(self, ser):
+    def _select_tag(self, ser):
         buf = [0x93, 0x70] + ser[:5]
         buf += self._crc(buf)
         (stat, recv, bits) = self._tocard(_CMD_TRANCEIVE, buf)
         return self.OK if (stat == self.OK) and (bits == 0x18) else self.ERR
 
-    def auth(self, mode, addr, sect, ser):
+    def _auth(self, mode, addr, sect, ser):
         return self._tocard(_CMD_MF_AUTHENT, [mode, addr] + sect + ser[:4])[0]
 
-    def stop_crypto1(self):
+    def _stop_crypto1(self):
         self._cflags(_REG_STATUS_2, 0x08)
-
-    def read(self, addr):
-        data = [0x30, addr]
-        data += self._crc(data)
-        (stat, recv, _) = self._tocard(_CMD_TRANCEIVE, data)
-        return recv if stat == self.OK else None
-
-    def writePageNtag(self, page, data):
-        buf = [0xA2, page]
-        buf += data
-        buf += self._crc(buf)
-        (stat, recv, bits) = self._tocard(_CMD_TRANCEIVE, buf)
-        return stat
-        
-    def readID(self):
-        stat, bits = self.request(_TAG_CMD_REQIDL)
-        return stat, bits
     
-    def SelectTagSN(self):
+    def _SelectTagSN(self):
         valid_uid=[]
-        (status,uid)= self.anticoll(_TAG_CMD_ANTCOL1)
+        (status,uid)= self._anticoll(_TAG_CMD_ANTCOL1)
         if status != self.OK:
             return  (self.ERR,[])
         
-        if self.PcdSelect(uid,_TAG_CMD_ANTCOL1) == 0:
+        if self._PcdSelect(uid,_TAG_CMD_ANTCOL1) == 0:
             return (self.ERR,[])
         
         if uid[0] == 0x88 : # NTAG
             valid_uid.extend(uid[1:4])
-            (status,uid)=self.anticoll(_TAG_CMD_ANTCOL2)
+            (status,uid)=self._anticoll(_TAG_CMD_ANTCOL2)
             if status != self.OK:
                 return (self.ERR,[])
-            rtn =  self.PcdSelect(uid,_TAG_CMD_ANTCOL2)
+            rtn =  self._PcdSelect(uid,_TAG_CMD_ANTCOL2)
             if rtn == 0:
                 return (self.ERR,[])
             #now check again if uid[0] is 0x88
             if uid[0] == 0x88 :
                 valid_uid.extend(uid[1:4])
-                (status , uid) = self.anticoll(_TAG_CMD_ANTCOL3)
+                (status , uid) = self._anticoll(_TAG_CMD_ANTCOL3)
                 if status != self.OK:
-                    return (self.ERR,[])
-                if self.MFRC522_PcdSelect(uid,_TAG_CMD_ANTCOL3) == 0:
                     return (self.ERR,[])
         valid_uid.extend(uid[0:5])
         return (self.OK , valid_uid[:len(valid_uid)-1])
     
-    def PcdSelect(self, serNum,anticolN):
+    def _PcdSelect(self, serNum,anticolN):
         backData = []
         buf = []
         buf.append(anticolN)
@@ -301,8 +253,8 @@ class PiicoDev_RFID(object):
         else:
             return 0
         
-    def detectTag(self):
-        (stat, ATQA) = self.request(_TAG_CMD_REQIDL)
+    def _detectTag(self):
+        (stat, ATQA) = self._request(_TAG_CMD_REQIDL)
         _present = False
         if stat is self.OK:
             _present = True
@@ -310,7 +262,7 @@ class PiicoDev_RFID(object):
         return {'present':_present, 'ATQA':ATQA}
 
     def _readTagID(self):
-        (stat, id) = self.SelectTagSN()
+        (stat, id) = self._SelectTagSN()
         _success = True
         if stat is self.OK:
             _success = True
@@ -325,57 +277,20 @@ class PiicoDev_RFID(object):
         if len(id) == 4:
             type = 'classic'
         return {'success':_success, 'id_integers':id, 'id_formatted':id_formatted.upper(), 'type':type}
-    
-    def writeClassicRegister(self, register, data_byte_array):
-        while True:
-            auth_result = 0
-            (stat, tag_type) = self.request(_TAG_CMD_REQIDL)
 
-            if stat == self.OK:
-                (stat, raw_uid) = self.anticoll()
+    def reset(self):
+        self._wreg(_REG_COMMAND, _CMD_SOFT_RESET)
 
-                if stat == self.OK:
-                    if self.select_tag(raw_uid) == self.OK:
-                        auth_result = self.auth(_TAG_AUTH_KEY_A, register, _CLASSIC_KEY, raw_uid)
-                        if (auth_result == self.OK):
-                            stat = self.classicWrite(register, data_byte_array)
-                            self.stop_crypto1()
-                            if stat == self.OK:
-                                return True
-                            else:
-                                print("Failed to write data to tag")
-                                return False
-                        else:
-                            print("Authentication error")
-                            return False
-                    else:
-                        print("Failed to select tag")
-                        return False   
-    
-    def readClassicData(self, register):
-        tag_data = None
-        auth_result = 0
-        while tag_data is None:
-            (stat, tag_type) = self.request(_TAG_CMD_REQIDL)
-            if stat == self.OK:
-                (stat, raw_uid) = self.anticoll()
-                if stat == self.OK:
-                    if self.select_tag(raw_uid) == self.OK:
-                        auth_result = self.auth(_TAG_AUTH_KEY_A, register, _CLASSIC_KEY, raw_uid)
-                        if (auth_result == self.OK):
-                            tag_data = self.read(register)
-                            self.stop_crypto1()
-                            return tag_data
-                        else:
-                            print("Authentication error")
-                    else:
-                        print("Failed to select tag")
-            sleep_ms(10)
+    def antenna_on(self, on=True):
+        if on and ~(self._rreg(_REG_TX_CONTROL) & 0x03):
+            self._sflags(_REG_TX_CONTROL, 0x83)
+        else:
+            self._cflags(_REG_TX_CONTROL, b'\x03')
 
     def readTagID(self):
-        detect_tag_result = self.detectTag()
+        detect_tag_result = self._detectTag()
         if detect_tag_result['present'] is False: #Try again, the card may not be in the correct state
-            detect_tag_result = self.detectTag()
+            detect_tag_result = self._detectTag()
         if detect_tag_result['present']:
             read_tag_id_result = self._readTagID()
             if read_tag_id_result['success']:
@@ -394,6 +309,6 @@ class PiicoDev_RFID(object):
     
     if _SYSNAME != 'microbit':
         try:
-            from PiicoDev_RFID_Expansion import classicWrite, writeNumberToNtag, writeNumberToClassic, writeNumber, readNumber, writeTextToNtag, writeTextToClassic, writeText, readTextFromNtag, readTextFromClassic, readText, writeLink 
+            from PiicoDev_RFID_Expansion import _writePageNtag, _classicWrite, _writeClassicRegister, _read, _readClassicData, _writeNumberToNtag, _writeNumberToClassic, writeNumber, readNumber, _writeTextToNtag, _writeTextToClassic, writeText, _readTextFromNtag, _readTextFromClassic, readText, writeLink 
         except:
             print('Install PiicoDev_RFID_Expansion.py for full functionality')
