@@ -11,7 +11,10 @@
 from PiicoDev_Unified import *
 import struct
 
-_CMD_TRANCEIVE = 0x0C
+_REG_STATUS_2   = 0x08
+_CMD_TRANCEIVE  = 0x0C
+_CMD_MF_AUTHENT = 0x0E
+
 
 # RFID Tag (Proximity Integrated Circuit Card)
 _TAG_CMD_REQIDL  = 0x26
@@ -30,6 +33,21 @@ _CLASSIC_ADR = [1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14, 16, 17, 18, 20, 21, 22, 24,
 # PiicoDev Merge NTAG & Classic
 _SLOT_NO_MIN = 0
 _SLOT_NO_MAX = 35
+
+# Required for Classic Tag only - Select a specific tag for reading & writing
+def _classicSelectTag(self, ser):
+    buf = [0x93, 0x70] + ser[:5]
+    buf += self._crc(buf)
+    (stat, recv, bits) = self._tocard(_CMD_TRANCEIVE, buf)
+    return self.OK if (stat == self.OK) and (bits == 0x18) else self.ERR
+
+# Required for Classic Tag only - Authenticate the address in memory
+def _classicAuth(self, mode, addr, sect, ser):
+    return self._tocard(_CMD_MF_AUTHENT, [mode, addr] + sect + ser[:4])[0]
+
+# Required for Classic Tag only - Turn off crypto
+def _classicStopCrypto(self):
+    self._cflags(_REG_STATUS_2, 0x08)
 
 # ----------------------------- Write -------------------------------------------------
 
@@ -65,11 +83,11 @@ def _writeClassicRegister(self, register, data_byte_array):
             (stat, raw_uid) = self._anticoll()
 
             if stat == self.OK:
-                if self._select_tag(raw_uid) == self.OK:
-                    auth_result = self._auth(_TAG_AUTH_KEY_A, register, _CLASSIC_KEY, raw_uid)
+                if self._classicSelectTag(raw_uid) == self.OK:
+                    auth_result = self._classicAuth(_TAG_AUTH_KEY_A, register, _CLASSIC_KEY, raw_uid)
                     if (auth_result == self.OK):
                         stat = self._classicWrite(register, data_byte_array)
-                        self._stop_crypto1()
+                        self._classicStopCrypto()
                         if stat == self.OK:
                             return True
                         else:
@@ -97,11 +115,11 @@ def _readClassicData(self, register):
         if stat == self.OK:
             (stat, raw_uid) = self._anticoll()
             if stat == self.OK:
-                if self._select_tag(raw_uid) == self.OK:
-                    auth_result = self._auth(_TAG_AUTH_KEY_A, register, _CLASSIC_KEY, raw_uid)
+                if self._classicSelectTag(raw_uid) == self.OK:
+                    auth_result = self._classicAuth(_TAG_AUTH_KEY_A, register, _CLASSIC_KEY, raw_uid)
                     if (auth_result == self.OK):
                         tag_data = self._read(register)
-                        self._stop_crypto1()
+                        self._classicStopCrypto()
                         return tag_data
                     else:
                         print("Authentication error")
@@ -111,6 +129,7 @@ def _readClassicData(self, register):
 
 # ----------------------------- Write Number --------------------------------------------
 
+# Writes a number to NTAG
 def _writeNumberToNtag(self, bytes_number, slot=0):
     tag_write_success = False
     assert slot >= _SLOT_NO_MIN and slot <=_SLOT_NO_MAX, 'Slot must be between 0 and 35'
@@ -121,6 +140,7 @@ def _writeNumberToNtag(self, bytes_number, slot=0):
         tag_write_success = True
     return tag_write_success
 
+# Writes a number to Classic
 def _writeNumberToClassic(self, bytes_number, slot=0):
     assert slot >= _SLOT_NO_MIN and slot <=_SLOT_NO_MAX, 'Slot must be between 0 and 35'
     while len(bytes_number) < _CLASSIC_NO_BYTES_PER_REG:
@@ -128,6 +148,7 @@ def _writeNumberToClassic(self, bytes_number, slot=0):
     tag_write_success = self._writeClassicRegister(_CLASSIC_ADR[slot], bytes_number)
     return tag_write_success
 
+# Writes a number to the tag
 def writeNumber(self, number, slot=35):
     success = False
     bytearray_number = bytearray(struct.pack('l', number))
@@ -147,6 +168,7 @@ def writeNumber(self, number, slot=35):
 
 # ----------------------------- Read Number --------------------------------------------
 
+# Reads a number from the tag
 def readNumber(self, slot=35):
     bytearray_number = None
     read_tag_id_result = self.readTagID()
@@ -169,6 +191,7 @@ def readNumber(self, slot=35):
 
 # ----------------------------- Write Text --------------------------------------------
 
+# Writes text to NTAG.
 def _writeTextToNtag(self, text, ignore_null=False): # NTAG213
     buffer_start = 0
     for page_adr in range (_NTAG_PAGE_ADR_MIN,_NTAG_PAGE_ADR_MAX+1):
@@ -183,6 +206,7 @@ def _writeTextToNtag(self, text, ignore_null=False): # NTAG213
                 return tag_write_success
     return tag_write_success
 
+# Writes text to Classic.
 def _writeTextToClassic(self, text, ignore_null=False):
     buffer_start = 0
     x = 0
@@ -198,6 +222,7 @@ def _writeTextToClassic(self, text, ignore_null=False):
                 return tag_write_success
     return tag_write_success
 
+# Writes text to the tag.
 def writeText(self, text, ignore_null=False):
     success = False
     maximum_characters = 144
@@ -211,6 +236,7 @@ def writeText(self, text, ignore_null=False):
 
 # ----------------------------- Read Text --------------------------------------------
 
+# Reads text from NTAG.
 def _readTextFromNtag(self):
     total_string = ''
     for page_adr in range (_NTAG_PAGE_ADR_MIN,_NTAG_PAGE_ADR_MAX+1):
@@ -223,6 +249,7 @@ def _readTextFromNtag(self):
         page_adr = page_adr + _NTAG_NO_BYTES_PER_PAGE
     return total_string
 
+# Reads text from Classic.
 def _readTextFromClassic(self):
     x = 0
     total_string = ''
@@ -235,6 +262,7 @@ def _readTextFromClassic(self):
             return substring[0]
     return total_string
 
+# Reads text from the tag.
 def readText(self):
     text = ''
     read_tag_id_result = self.readTagID()
@@ -248,6 +276,7 @@ def readText(self):
 
 # ----------------------------- Write Link --------------------------------------------
 
+# Writes a URI to the tag
 def writeLink(self, uri): # Currently only supported by NTAG213
     is_ndef_message = chr(3)
     ndef_length = chr(len(uri) + 5)
