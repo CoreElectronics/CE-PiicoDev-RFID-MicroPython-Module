@@ -1,11 +1,11 @@
 _I='microbit'
 _H='present'
-_G='type'
-_F='id_integers'
-_E=None
+_G=None
+_F='type'
+_E='id_integers'
 _D='id_formatted'
-_C='success'
-_B=True
+_C=True
+_B='success'
 _A=False
 from PiicoDev_Unified import *
 compat_str='\nUnified PiicoDev library out of date.  Get the latest module: https://piico.dev/unified \n'
@@ -48,7 +48,7 @@ _TAG_AUTH_KEY_A=96
 _CLASSIC_KEY=[255,255,255,255,255,255]
 class PiicoDev_RFID:
 	OK=1;NOTAGERR=2;ERR=3
-	def __init__(self,bus=_E,freq=_E,sda=_E,scl=_E,address=_I2C_ADDRESS,suppress_warnings=_A):
+	def __init__(self,bus=_G,freq=_G,sda=_G,scl=_G,address=_I2C_ADDRESS,suppress_warnings=_A):
 		try:
 			if compat_ind>=1:0
 			else:print(compat_str)
@@ -69,7 +69,7 @@ class PiicoDev_RFID:
 		self._wreg(_REG_COMMAND,cmd)
 		if cmd==_CMD_TRANCEIVE:self._sflags(_REG_BIT_FRAMING,128)
 		i=20000
-		while _B:
+		while _C:
 			n=self._rreg(_REG_COM_IRQ);i-=1
 			if n&wait_irq:break
 			if n&1:break
@@ -92,7 +92,7 @@ class PiicoDev_RFID:
 		self._wreg(_REG_COMMAND,_CMD_IDLE);self._cflags(_REG_DIV_IRQ,4);self._sflags(_REG_FIFO_LEVEL,128)
 		for c in data:self._wreg(_REG_FIFO_DATA,c)
 		self._wreg(_REG_COMMAND,_CMD_CALC_CRC);i=255
-		while _B:
+		while _C:
 			n=self._rreg(_REG_DIV_IRQ);i-=1
 			if not(i!=0 and not n&4):break
 		self._wreg(_REG_COMMAND,_CMD_IDLE);return[self._rreg(_REG_CRC_RESULT_LSB),self._rreg(_REG_CRC_RESULT_MSB)]
@@ -108,45 +108,38 @@ class PiicoDev_RFID:
 				if ser_chk!=recv[4]:stat=self.ERR
 			else:stat=self.ERR
 		return stat,recv
-	def _select_tag(self,ser):buf=[147,112]+ser[:5];buf+=self._crc(buf);stat,recv,bits=self._tocard(_CMD_TRANCEIVE,buf);return self.OK if stat==self.OK and bits==24 else self.ERR
-	def _auth(self,mode,addr,sect,ser):return self._tocard(_CMD_MF_AUTHENT,[mode,addr]+sect+ser[:4])[0]
-	def _stop_crypto1(self):self._cflags(_REG_STATUS_2,8)
-	def _SelectTagSN(self):
-		valid_uid=[];status,uid=self._anticoll(_TAG_CMD_ANTCOL1)
-		if status!=self.OK:return self.ERR,[]
-		if self._PcdSelect(uid,_TAG_CMD_ANTCOL1)==0:return self.ERR,[]
-		if uid[0]==136:
-			valid_uid.extend(uid[1:4]);status,uid=self._anticoll(_TAG_CMD_ANTCOL2)
-			if status!=self.OK:return self.ERR,[]
-			rtn=self._PcdSelect(uid,_TAG_CMD_ANTCOL2)
-			if rtn==0:return self.ERR,[]
-			if uid[0]==136:
-				valid_uid.extend(uid[1:4]);status,uid=self._anticoll(_TAG_CMD_ANTCOL3)
-				if status!=self.OK:return self.ERR,[]
-		valid_uid.extend(uid[0:5]);return self.OK,valid_uid[:len(valid_uid)-1]
-	def _PcdSelect(self,serNum,anticolN):
+	def _selectTag(self,serNum,anticolN):
 		backData=[];buf=[];buf.append(anticolN);buf.append(112)
 		for i in serNum:buf.append(i)
 		pOut=self._crc(buf);buf.append(pOut[0]);buf.append(pOut[1]);status,backData,backLen=self._tocard(12,buf)
 		if status==self.OK and backLen==24:return 1
 		else:return 0
-	def _detectTag(self):
-		stat,ATQA=self._request(_TAG_CMD_REQIDL);_present=_A
-		if stat is self.OK:_present=_B
-		self._tag_present=_present;return{_H:_present,'ATQA':ATQA}
 	def _readTagID(self):
-		stat,id=self._SelectTagSN();_success=_B
-		if stat is self.OK:_success=_B
-		id_formatted=''
+		result={_B:_A,_E:[],_D:'',_F:''};valid_uid=[];status,uid=self._anticoll(_TAG_CMD_ANTCOL1)
+		if status!=self.OK:return result
+		if self._selectTag(uid,_TAG_CMD_ANTCOL1)==0:return result
+		if uid[0]==136:
+			valid_uid.extend(uid[1:4]);status,uid=self._anticoll(_TAG_CMD_ANTCOL2)
+			if status!=self.OK:return result
+			rtn=self._selectTag(uid,_TAG_CMD_ANTCOL2)
+			if rtn==0:return result
+			if uid[0]==136:
+				valid_uid.extend(uid[1:4]);status,uid=self._anticoll(_TAG_CMD_ANTCOL3)
+				if status!=self.OK:return result
+		valid_uid.extend(uid[0:5]);id_formatted='';id=valid_uid[:len(valid_uid)-1]
 		for i in range(0,len(id)):
 			if i>0:id_formatted=id_formatted+':'
 			if id[i]<16:id_formatted=id_formatted+'0'
 			id_formatted=id_formatted+hex(id[i])[2:]
 		type='ntag'
 		if len(id)==4:type='classic'
-		return{_C:_success,_F:id,_D:id_formatted.upper(),_G:type}
+		return{_B:_C,_E:id,_D:id_formatted.upper(),_F:type}
+	def _detectTag(self):
+		stat,ATQA=self._request(_TAG_CMD_REQIDL);_present=_A
+		if stat is self.OK:_present=_C
+		self._tag_present=_present;return{_H:_present,'ATQA':ATQA}
 	def reset(self):self._wreg(_REG_COMMAND,_CMD_SOFT_RESET)
-	def antenna_on(self,on=_B):
+	def antenna_on(self,on=_C):
 		if on and~(self._rreg(_REG_TX_CONTROL)&3):self._sflags(_REG_TX_CONTROL,131)
 		else:self._cflags(_REG_TX_CONTROL,b'\x03')
 	def readTagID(self):
@@ -154,10 +147,10 @@ class PiicoDev_RFID:
 		if detect_tag_result[_H]is _A:detect_tag_result=self._detectTag()
 		if detect_tag_result[_H]:
 			read_tag_id_result=self._readTagID()
-			if read_tag_id_result[_C]:self._read_tag_id_success=_B;return{_C:read_tag_id_result[_C],_F:read_tag_id_result[_F],_D:read_tag_id_result[_D],_G:read_tag_id_result[_G]}
-		self._read_tag_id_success=_A;return{_C:_A,_F:[0],_D:'',_G:''}
+			if read_tag_id_result[_B]:self._read_tag_id_success=_C;return{_B:read_tag_id_result[_B],_E:read_tag_id_result[_E],_D:read_tag_id_result[_D],_F:read_tag_id_result[_F]}
+		self._read_tag_id_success=_A;return{_B:_A,_E:[0],_D:'',_F:''}
 	def readID(self):tagId=self.readTagID();return tagId[_D]
-	def tagPresent(self):id=self.readTagID();return id[_C]
+	def tagPresent(self):id=self.readTagID();return id[_B]
 	if _SYSNAME!=_I:
-		try:from PiicoDev_RFID_Expansion import _writePageNtag,_classicWrite,_writeClassicRegister,_read,_readClassicData,_writeNumberToNtag,_writeNumberToClassic,writeNumber,readNumber,_writeTextToNtag,_writeTextToClassic,writeText,_readTextFromNtag,_readTextFromClassic,readText,writeLink
+		try:from PiicoDev_RFID_Expansion import _classicSelectTag,_classicAuth,_classicStopCrypto,_writePageNtag,_classicWrite,_writeClassicRegister,_read,_readClassicData,_writeNumberToNtag,_writeNumberToClassic,writeNumber,readNumber,_writeTextToNtag,_writeTextToClassic,writeText,_readTextFromNtag,_readTextFromClassic,readText,writeLink
 		except:print('Install PiicoDev_RFID_Expansion.py for full functionality')
