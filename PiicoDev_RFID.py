@@ -280,11 +280,14 @@ class PiicoDev_RFID(object):
     def reset(self):
         self._wreg(_REG_COMMAND, _CMD_SOFT_RESET)
 
-    # Turns the antenna on or off
-    def antenna_on(self, on=True):
-        if on and ~(self._rreg(_REG_TX_CONTROL) & 0x03):
+    # Turns the antenna on
+    def antennaOn(self):
+        if ~(self._rreg(_REG_TX_CONTROL) & 0x03):
             self._sflags(_REG_TX_CONTROL, 0x83)
-        else:
+    
+    # Turns the antenna off
+    def antennaOff(self):
+        if not (~(self._rreg(_REG_TX_CONTROL) & 0x03)):
             self._cflags(_REG_TX_CONTROL, b'\x03')
 
     # Stand-alone function that puts the tag into the correct state
