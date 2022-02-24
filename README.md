@@ -63,11 +63,11 @@ id_formatted | str | length 11 or 20 | ID in a format XX:XX:XX:XX:XX:XX:XX for N
 type | str | 'ntag' or 'classic' | 
 success | bool | | True if the operation is successful
 
-### `PiicoDev_RFID.antenna_on(on=True)`
-Set the state of the antenna.  For normal operation this method does not need to be called.
-Parameter | Type | Default | Description
---- | --- | --- | ---
-antenna state | bool | True | Turn the antenna on or off
+### `PiicoDev_RFID.antennaOn()`
+Turn the antenna on.  For normal operation this method does not need to be called.
+
+### `PiicoDev_RFID.antennaOff()`
+Turn the antenna off.  For normal operation this method does not need to be called.
 
 ### `PiicoDev_RFID.reset()`
 Reset the RFID Module.  For normal operation this method does not need to be called.
