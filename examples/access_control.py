@@ -6,8 +6,8 @@ rfid = PiicoDev_RFID()
 print('Place tag near the PiicoDev RFID Module')
 print('')
 
-# Read the Authorised ID file
-authorised_users = ['04:F2:0A:D2:ED:6C:84']
+# A list of authorised users. Add your tag ID as a string to this list. eg: authorised_users = ['##:##:##:##:##:##:##'] 
+authorised_users = [''] 
 
 while True:
     access_granted = False
@@ -16,9 +16,9 @@ while True:
         id = rfid.readID()   # get the id
         print(id)            # print the id
  
-        if id in authorised_users:
-            print('access granted')
+        if id in authorised_users:  # check if the tag is in the authorised-user list
+            print('Access Granted!\n')
         else:
-            print('access denied')
+            print('*** ACCESS DENIED ***\n')
         sleep_ms(1000)
     sleep_ms(10)
