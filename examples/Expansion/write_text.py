@@ -1,19 +1,20 @@
+# Write a string to a tag, and read it back to show that it wrote correctly
+
 from PiicoDev_RFID import PiicoDev_RFID
 from PiicoDev_Unified import sleep_ms
 
 rfid = PiicoDev_RFID()
 
-text = '0123456789 abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz 0123456789 0123456789 abcdefghijklmnopqrstuvwxyz ABCDEFGHIJKLMN'
-text = 'PiicoDev hardware has been designed from the ground-up with rapid prototyping and maker education in mind. As community educators ourselves, we have baked '
+myString = 'Hello World!' # You can store up to 143 characters on a tag
 
-print('Place tag near the PiicoDev RFID Module')
+print('Hold tag near the PiicoDev RFID Module to write some text to it.')
 print('')
 
 while True:
-    success = rfid.writeText(text)
+    success = rfid.writeText(myString)
     if success:
-        text_read = rfid.readText()
+        data = rfid.readText()
         print('Text in tag:')
-        print(text_read)
+        print(data)
         break
     sleep_ms(10)

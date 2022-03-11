@@ -6,7 +6,7 @@ from PiicoDev_Unified import sleep_ms
 
 rfid = PiicoDev_RFID()
 
-print('Place tag near the PiicoDev RFID Module to write a URI')
+print('Hold tag near the PiicoDev RFID Module to write a URI')
 print('')
 
 # URIs can link loads of different resources. Here's just a few examples, but there are many more listed here: https://en.wikipedia.org/wiki/List_of_URI_schemes
