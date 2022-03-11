@@ -53,7 +53,7 @@ class PiicoDev_RFID:
 			if compat_ind>=1:0
 			else:print(compat_str)
 		except:print(compat_str)
-		self.i2c=create_unified_i2c(bus=bus,freq=freq,sda=sda,scl=scl);self.address=address;self._tag_present=_A;self._read_tag_id_success=_A;self.reset();sleep_ms(50);self._wreg(_REG_T_MODE,128);self._wreg(_REG_T_PRESCALER,169);self._wreg(_REG_T_RELOAD_HI,3);self._wreg(_REG_T_RELOAD_LO,232);self._wreg(_REG_TX_ASK,64);self._wreg(_REG_MODE,61);self._wreg(_REG_DIV_I_EN,128);self._wreg(_REG_COM_I_EN,32);self.antenna_on()
+		self.i2c=create_unified_i2c(bus=bus,freq=freq,sda=sda,scl=scl);self.address=address;self._tag_present=_A;self._read_tag_id_success=_A;self.reset();sleep_ms(50);self._wreg(_REG_T_MODE,128);self._wreg(_REG_T_PRESCALER,169);self._wreg(_REG_T_RELOAD_HI,3);self._wreg(_REG_T_RELOAD_LO,232);self._wreg(_REG_TX_ASK,64);self._wreg(_REG_MODE,61);self._wreg(_REG_DIV_I_EN,128);self._wreg(_REG_COM_I_EN,32);self.antennaOn()
 		if _SYSNAME==_I and not suppress_warnings:print('This library can only be used to get tag IDs.\nAdvanced methods such as reading and wring to tag memory are not available on Micro:bit due to the limited storage available.\nTo run advanced methods, use a Raspberry Pi Pico instead of Micro:bit.\nTo suppress this warning, initialise with PiicoDev_RFID(suppress_warnings=True)\n')
 	def _wreg(self,reg,val):self.i2c.writeto_mem(self.address,reg,bytes([val]))
 	def _wfifo(self,reg,val):self.i2c.writeto_mem(self.address,reg,bytes(val))
@@ -150,7 +150,9 @@ class PiicoDev_RFID:
 			read_tag_id_result=self._readTagID()
 			if read_tag_id_result[_B]:self._read_tag_id_success=_D;return{_B:read_tag_id_result[_B],_E:read_tag_id_result[_E],_C:read_tag_id_result[_C],_F:read_tag_id_result[_F]}
 		self._read_tag_id_success=_A;return{_B:_A,_E:[0],_C:'',_F:''}
-	def readID(self):tagId=self.readTagID();return tagId[_C]
+	def readID(self,detail=_A):
+		if detail is _A:tagId=self.readTagID();return tagId[_C]
+		else:return self.readTagID()
 	def tagPresent(self):id=self.readTagID();return id[_B]
 	if _SYSNAME!=_I:
 		try:from PiicoDev_RFID_Expansion import _classicSelectTag,_classicAuth,_classicStopCrypto,_writePageNtag,_classicWrite,_writeClassicRegister,_read,_readClassicData,_writeNumberToNtag,_writeNumberToClassic,writeNumber,readNumber,_writeTextToNtag,_writeTextToClassic,writeText,_readTextFromNtag,_readTextFromClassic,readText,writeLink
