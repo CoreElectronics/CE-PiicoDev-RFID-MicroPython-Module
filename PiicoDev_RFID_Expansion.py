@@ -283,7 +283,7 @@ def readText(self):
 # ----------------------------- Write Link --------------------------------------------
 
 # Writes a URI to the tag
-def writeLink(self, uri): # Currently only supported by NTAG213
+def writeURI(self, uri): # Currently only supported by NTAG213
     is_ndef_message = chr(3)
     ndef_length = chr(len(uri) + 5)
     ndef_record_header = chr(209)
