@@ -83,7 +83,7 @@ class PiicoDev_RFID(object):
         self._wreg(_REG_MODE, 0x3D)
         self._wreg(_REG_DIV_I_EN, 0x80) # CMOS Logic for IRQ pin
         self._wreg(_REG_COM_I_EN, 0x20) # allows the receiver interrupt request (RxIRq bit) to be propagated to pin IRQ
-        self.antenna_on()
+        self.antennaOn()
         if _SYSNAME == 'microbit' and not suppress_warnings:
             print('This library can only be used to get tag IDs.\nAdvanced methods such as reading and wring to tag memory are not available on Micro:bit due to the limited storage available.\nTo run advanced methods, use a Raspberry Pi Pico instead of Micro:bit.\nTo suppress this warning, initialise with PiicoDev_RFID(suppress_warnings=True)\n')
     
@@ -305,9 +305,11 @@ class PiicoDev_RFID(object):
         return {'success':False, 'id_integers':[0], 'id_formatted':'', 'type':''}
 
     # Wrapper for readTagID
-    def readID(self):
-        tagId = self.readTagID()
-        return tagId['id_formatted']
+    def readID(self, detail=False):
+        if detail is False:
+            tagId = self.readTagID()
+            return tagId['id_formatted']
+        else: return self.readTagID()
 
     # Wrapper for readTagID
     def tagPresent(self):
