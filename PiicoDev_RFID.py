@@ -61,7 +61,7 @@ class PiicoDev_RFID(object):
     NOTAGERR = 2
     ERR = 3
 
-    def __init__(self, bus=None, freq=None, sda=None, scl=None, address=_I2C_ADDRESS, suppress_warnings=False):
+    def __init__(self, bus=None, freq=None, sda=None, scl=None, address=_I2C_ADDRESS, asw=None, suppress_warnings=False):
         try:
             if compat_ind >= 1:
                 pass
@@ -70,7 +70,13 @@ class PiicoDev_RFID(object):
         except:
             print(compat_str)
         self.i2c = create_unified_i2c(bus=bus, freq=freq, sda=sda, scl=scl)
-        self.address = address
+        
+        if type(asw) is list: # determine address from ASW switch positions (if provided)
+            assert max(asw) <= 1 and min(asw) >= 0 and len(asw) is 2, "id must be a list of 1/0, length=2"
+            self.address=_I2C_ADDRESS+asw[0]+2*asw[1]
+        else:
+            self.address = address # fall back on using address argument
+            
         self._tag_present = False
         self._read_tag_id_success = False
         self.reset()
@@ -319,6 +325,6 @@ class PiicoDev_RFID(object):
     # Use PiicoDev_RFID_Expansion if not Micro:bit
     if _SYSNAME != 'microbit':
         try:
-            from PiicoDev_RFID_Expansion import _classicSelectTag, _classicAuth, _classicStopCrypto, _writePageNtag, _classicWrite, _writeClassicRegister, _read, _readClassicData, _writeNumberToNtag, _writeNumberToClassic, writeNumber, readNumber, _writeTextToNtag, _writeTextToClassic, writeText, _readTextFromNtag, _readTextFromClassic, readText, writeLink 
+            from PiicoDev_RFID_Expansion import _classicSelectTag, _classicAuth, _classicStopCrypto, _writePageNtag, _classicWrite, _writeClassicRegister, _read, _readClassicData, _writeNumberToNtag, _writeNumberToClassic, writeNumber, readNumber, _writeTextToNtag, _writeTextToClassic, writeText, _readTextFromNtag, _readTextFromClassic, readText, writeURI
         except:
             print('Install PiicoDev_RFID_Expansion.py for full functionality')
