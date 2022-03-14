@@ -17,7 +17,11 @@ while True:
  
         if id in authorised_users:  # check if the tag is in the authorised-user list
             print('Access Granted!\n')
+            # Your code here for authorised users
+            
         else:
             print('*** ACCESS DENIED ***\n')
+            # Your code here for unauthorised users
+            
         sleep_ms(1000)
     sleep_ms(10)

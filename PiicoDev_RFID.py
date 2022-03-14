@@ -91,7 +91,7 @@ class PiicoDev_RFID(object):
         self._wreg(_REG_COM_I_EN, 0x20) # allows the receiver interrupt request (RxIRq bit) to be propagated to pin IRQ
         self.antennaOn()
         if _SYSNAME == 'microbit' and not suppress_warnings:
-            print('This library can only be used to get tag IDs.\nAdvanced methods such as reading and wring to tag memory are not available on Micro:bit due to the limited storage available.\nTo run advanced methods, use a Raspberry Pi Pico instead of Micro:bit.\nTo suppress this warning, initialise with PiicoDev_RFID(suppress_warnings=True)\n')
+            print("Due to micro:bit's limited flash storage this library can only be used to read tag IDs.\nTo run advanced methods, use a Raspberry Pi Pico instead.\nTo suppress this warning, initialise with: PiicoDev_RFID(suppress_warnings=True)\n")
     
     # I2C write to register
     def _wreg(self, reg, val):
