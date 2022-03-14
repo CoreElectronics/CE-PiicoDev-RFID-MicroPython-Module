@@ -1,9 +1,9 @@
 _I='microbit'
 _H='present'
-_G=None
-_F='type'
-_E='id_integers'
-_D=True
+_G='type'
+_F='id_integers'
+_E=True
+_D=None
 _C='id_formatted'
 _B='success'
 _A=False
@@ -48,12 +48,15 @@ _TAG_AUTH_KEY_A=96
 _CLASSIC_KEY=[255,255,255,255,255,255]
 class PiicoDev_RFID:
 	OK=1;NOTAGERR=2;ERR=3
-	def __init__(self,bus=_G,freq=_G,sda=_G,scl=_G,address=_I2C_ADDRESS,suppress_warnings=_A):
+	def __init__(self,bus=_D,freq=_D,sda=_D,scl=_D,address=_I2C_ADDRESS,asw=_D,suppress_warnings=_A):
 		try:
 			if compat_ind>=1:0
 			else:print(compat_str)
 		except:print(compat_str)
-		self.i2c=create_unified_i2c(bus=bus,freq=freq,sda=sda,scl=scl);self.address=address;self._tag_present=_A;self._read_tag_id_success=_A;self.reset();sleep_ms(50);self._wreg(_REG_T_MODE,128);self._wreg(_REG_T_PRESCALER,169);self._wreg(_REG_T_RELOAD_HI,3);self._wreg(_REG_T_RELOAD_LO,232);self._wreg(_REG_TX_ASK,64);self._wreg(_REG_MODE,61);self._wreg(_REG_DIV_I_EN,128);self._wreg(_REG_COM_I_EN,32);self.antennaOn()
+		self.i2c=create_unified_i2c(bus=bus,freq=freq,sda=sda,scl=scl)
+		if type(asw)is list:assert max(asw)<=1 and min(asw)>=0 and len(asw)is 2,'id must be a list of 1/0, length=2';self.address=_I2C_ADDRESS+asw[0]+2*asw[1]
+		else:self.address=address
+		self._tag_present=_A;self._read_tag_id_success=_A;self.reset();sleep_ms(50);self._wreg(_REG_T_MODE,128);self._wreg(_REG_T_PRESCALER,169);self._wreg(_REG_T_RELOAD_HI,3);self._wreg(_REG_T_RELOAD_LO,232);self._wreg(_REG_TX_ASK,64);self._wreg(_REG_MODE,61);self._wreg(_REG_DIV_I_EN,128);self._wreg(_REG_COM_I_EN,32);self.antennaOn()
 		if _SYSNAME==_I and not suppress_warnings:print('This library can only be used to get tag IDs.\nAdvanced methods such as reading and wring to tag memory are not available on Micro:bit due to the limited storage available.\nTo run advanced methods, use a Raspberry Pi Pico instead of Micro:bit.\nTo suppress this warning, initialise with PiicoDev_RFID(suppress_warnings=True)\n')
 	def _wreg(self,reg,val):self.i2c.writeto_mem(self.address,reg,bytes([val]))
 	def _wfifo(self,reg,val):self.i2c.writeto_mem(self.address,reg,bytes(val))
@@ -69,7 +72,7 @@ class PiicoDev_RFID:
 		self._wreg(_REG_COMMAND,cmd)
 		if cmd==_CMD_TRANCEIVE:self._sflags(_REG_BIT_FRAMING,128)
 		i=20000
-		while _D:
+		while _E:
 			n=self._rreg(_REG_COM_IRQ);i-=1
 			if n&wait_irq:break
 			if n&1:break
@@ -92,7 +95,7 @@ class PiicoDev_RFID:
 		self._wreg(_REG_COMMAND,_CMD_IDLE);self._cflags(_REG_DIV_IRQ,4);self._sflags(_REG_FIFO_LEVEL,128)
 		for c in data:self._wreg(_REG_FIFO_DATA,c)
 		self._wreg(_REG_COMMAND,_CMD_CALC_CRC);i=255
-		while _D:
+		while _E:
 			n=self._rreg(_REG_DIV_IRQ);i-=1
 			if not(i!=0 and not n&4):break
 		self._wreg(_REG_COMMAND,_CMD_IDLE);return[self._rreg(_REG_CRC_RESULT_LSB),self._rreg(_REG_CRC_RESULT_MSB)]
@@ -115,7 +118,7 @@ class PiicoDev_RFID:
 		if status==self.OK and backLen==24:return 1
 		else:return 0
 	def _readTagID(self):
-		result={_B:_A,_E:[],_C:'',_F:''};valid_uid=[];status,uid=self._anticoll(_TAG_CMD_ANTCOL1)
+		result={_B:_A,_F:[],_C:'',_G:''};valid_uid=[];status,uid=self._anticoll(_TAG_CMD_ANTCOL1)
 		if status!=self.OK:return result
 		if self._selectTag(uid,_TAG_CMD_ANTCOL1)==0:return result
 		if uid[0]==136:
@@ -133,10 +136,10 @@ class PiicoDev_RFID:
 			id_formatted=id_formatted+hex(id[i])[2:]
 		type='ntag'
 		if len(id)==4:type='classic'
-		return{_B:_D,_E:id,_C:id_formatted.upper(),_F:type}
+		return{_B:_E,_F:id,_C:id_formatted.upper(),_G:type}
 	def _detectTag(self):
 		stat,ATQA=self._request(_TAG_CMD_REQIDL);_present=_A
-		if stat is self.OK:_present=_D
+		if stat is self.OK:_present=_E
 		self._tag_present=_present;return{_H:_present,'ATQA':ATQA}
 	def reset(self):self._wreg(_REG_COMMAND,_CMD_SOFT_RESET)
 	def antennaOn(self):
@@ -148,12 +151,12 @@ class PiicoDev_RFID:
 		if detect_tag_result[_H]is _A:detect_tag_result=self._detectTag()
 		if detect_tag_result[_H]:
 			read_tag_id_result=self._readTagID()
-			if read_tag_id_result[_B]:self._read_tag_id_success=_D;return{_B:read_tag_id_result[_B],_E:read_tag_id_result[_E],_C:read_tag_id_result[_C],_F:read_tag_id_result[_F]}
-		self._read_tag_id_success=_A;return{_B:_A,_E:[0],_C:'',_F:''}
+			if read_tag_id_result[_B]:self._read_tag_id_success=_E;return{_B:read_tag_id_result[_B],_F:read_tag_id_result[_F],_C:read_tag_id_result[_C],_G:read_tag_id_result[_G]}
+		self._read_tag_id_success=_A;return{_B:_A,_F:[0],_C:'',_G:''}
 	def readID(self,detail=_A):
 		if detail is _A:tagId=self.readTagID();return tagId[_C]
 		else:return self.readTagID()
 	def tagPresent(self):id=self.readTagID();return id[_B]
 	if _SYSNAME!=_I:
-		try:from PiicoDev_RFID_Expansion import _classicSelectTag,_classicAuth,_classicStopCrypto,_writePageNtag,_classicWrite,_writeClassicRegister,_read,_readClassicData,_writeNumberToNtag,_writeNumberToClassic,writeNumber,readNumber,_writeTextToNtag,_writeTextToClassic,writeText,_readTextFromNtag,_readTextFromClassic,readText,writeLink
+		try:from PiicoDev_RFID_Expansion import _classicSelectTag,_classicAuth,_classicStopCrypto,_writePageNtag,_classicWrite,_writeClassicRegister,_read,_readClassicData,_writeNumberToNtag,_writeNumberToClassic,writeNumber,readNumber,_writeTextToNtag,_writeTextToClassic,writeText,_readTextFromNtag,_readTextFromClassic,readText,writeURI
 		except:print('Install PiicoDev_RFID_Expansion.py for full functionality')
