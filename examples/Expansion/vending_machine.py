@@ -10,7 +10,10 @@ rfid = PiicoDev_RFID()
 print('Place tag near the PiicoDev RFID Module to purchase for $' + str(price))
 print('')
 
-rfid.writeNumber(100) # Give credit (whole dollars only)
+if rfid.tagPresent(): # apply credit on powerup
+    rfid.writeNumber(20) # Give credit (whole dollars only)
+    print('Credit applied! Remove tag...')
+    while rfid.tagPresent(): sleep_ms(100)
 
 while True:
     balance_dollars = rfid.readNumber()
