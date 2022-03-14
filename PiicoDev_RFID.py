@@ -72,7 +72,7 @@ class PiicoDev_RFID(object):
         self.i2c = create_unified_i2c(bus=bus, freq=freq, sda=sda, scl=scl)
         
         if type(asw) is list: # determine address from ASW switch positions (if provided)
-            assert max(asw) <= 1 and min(asw) >= 0 and len(asw) is 2, "id must be a list of 1/0, length=2"
+            assert max(asw) <= 1 and min(asw) >= 0 and len(asw) is 2, "asw must be a list of 1/0, length=2"
             self.address=_I2C_ADDRESS+asw[0]+2*asw[1]
         else:
             self.address = address # fall back on using address argument
@@ -91,7 +91,7 @@ class PiicoDev_RFID(object):
         self._wreg(_REG_COM_I_EN, 0x20) # allows the receiver interrupt request (RxIRq bit) to be propagated to pin IRQ
         self.antennaOn()
         if _SYSNAME == 'microbit' and not suppress_warnings:
-            print("Due to micro:bit's limited flash storage this library can only be used to read tag IDs.\nTo run advanced methods, use a Raspberry Pi Pico instead.\nTo suppress this warning, initialise with: PiicoDev_RFID(suppress_warnings=True)\n")
+            print("Due to micro:bit's limited flash storage this library is running with reduced features.\nFor advanced features, use a Raspberry Pi or Pico instead.\nSuppress this warning: initialise with PiicoDev_RFID(suppress_warnings=True)\n")
     
     # I2C write to register
     def _wreg(self, reg, val):
