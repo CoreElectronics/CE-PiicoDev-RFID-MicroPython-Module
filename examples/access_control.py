@@ -10,7 +10,6 @@ print('')
 authorised_users = [''] 
 
 while True:
-    access_granted = False
     
     if rfid.tagPresent():    # if an RFID tag is present
         id = rfid.readID()   # get the id
