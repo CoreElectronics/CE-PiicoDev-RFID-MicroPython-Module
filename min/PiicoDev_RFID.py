@@ -54,10 +54,10 @@ class PiicoDev_RFID:
 			else:print(compat_str)
 		except:print(compat_str)
 		self.i2c=create_unified_i2c(bus=bus,freq=freq,sda=sda,scl=scl)
-		if type(asw)is list:assert max(asw)<=1 and min(asw)>=0 and len(asw)is 2,'id must be a list of 1/0, length=2';self.address=_I2C_ADDRESS+asw[0]+2*asw[1]
+		if type(asw)is list:assert max(asw)<=1 and min(asw)>=0 and len(asw)is 2,'asw must be a list of 1/0, length=2';self.address=_I2C_ADDRESS+asw[0]+2*asw[1]
 		else:self.address=address
 		self._tag_present=_A;self._read_tag_id_success=_A;self.reset();sleep_ms(50);self._wreg(_REG_T_MODE,128);self._wreg(_REG_T_PRESCALER,169);self._wreg(_REG_T_RELOAD_HI,3);self._wreg(_REG_T_RELOAD_LO,232);self._wreg(_REG_TX_ASK,64);self._wreg(_REG_MODE,61);self._wreg(_REG_DIV_I_EN,128);self._wreg(_REG_COM_I_EN,32);self.antennaOn()
-		if _SYSNAME==_I and not suppress_warnings:print("Due to micro:bit's limited flash storage this library can only be used to read tag IDs.\nTo run advanced methods, use a Raspberry Pi Pico instead.\nTo suppress this warning, initialise with: PiicoDev_RFID(suppress_warnings=True)\n")
+		if _SYSNAME==_I and not suppress_warnings:print("Due to micro:bit's limited flash storage this library is running with reduced features.\nFor advanced features, use a Raspberry Pi or Pico instead.\nSuppress this warning: initialise with PiicoDev_RFID(suppress_warnings=True)\n")
 	def _wreg(self,reg,val):self.i2c.writeto_mem(self.address,reg,bytes([val]))
 	def _wfifo(self,reg,val):self.i2c.writeto_mem(self.address,reg,bytes(val))
 	def _rreg(self,reg):val=self.i2c.readfrom_mem(self.address,reg,1);return val[0]
