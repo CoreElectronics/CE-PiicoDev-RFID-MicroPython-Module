@@ -1,11 +1,8 @@
 # Enables the reading of tag IDs using the Core Electronics PiicoDev RFID Module
 # Ported by Peter Johnston at Core Electronics February 2022
-# Original Repos:
-# 2021-12-01:
+# Original Repos 2021-12-01:
 # https://github.com/semaf/MFRC522_I2C_Library
-# 2021-12-01:
 # https://github.com/wendlers/micropython-mfrc522
-# 2021-12-01:
 # https://github.com/mxgxw/MFRC522-python
 
 from PiicoDev_Unified import *
