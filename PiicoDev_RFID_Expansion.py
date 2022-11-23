@@ -10,6 +10,7 @@
 
 from PiicoDev_Unified import *
 import struct
+from time import time as now
 
 _REG_STATUS_2   = 0x08
 _CMD_TRANCEIVE  = 0x0C
@@ -245,35 +246,42 @@ def writeText(self, text, ignore_null=False):
 # Reads text from NTAG.
 def _readTextFromNtag(self):
     total_string = ''
-    for page_adr in range (_NTAG_PAGE_ADR_MIN,_NTAG_PAGE_ADR_MAX+1):
-        page_data = self._read(page_adr)[:4]
-        page_text = "".join(chr(x) for x in page_data)
-        total_string = total_string + page_text
-        if 0 in page_data: # Null found.  Job complete.
-            substring = total_string.split('\0')
-            return substring[0]
-        page_adr = page_adr + _NTAG_NO_BYTES_PER_PAGE
+    try:
+        for page_adr in range (_NTAG_PAGE_ADR_MIN,_NTAG_PAGE_ADR_MAX+1):
+            page_data = self._read(page_adr)[:4]
+            page_text = "".join(chr(x) for x in page_data)
+            total_string = total_string + page_text
+            if 0 in page_data: # Null found.  Job complete.
+                substring = total_string.split('\0')
+                return substring[0]
+            page_adr = page_adr + _NTAG_NO_BYTES_PER_PAGE
+    except:
+        pass
     return total_string
 
 # Reads text from Classic.
 def _readTextFromClassic(self):
     x = 0
     total_string = ''
-    for slot in range(9):
-        reg_data = self._readClassicData(_CLASSIC_ADR[slot])
-        reg_text = "".join(chr(x) for x in reg_data)
-        total_string = total_string + reg_text
-        if 0 in reg_data: # Null found.  Job complete.
-            substring = total_string.split('\0')
-            return substring[0]
+    try:
+        for slot in range(9):
+            reg_data = self._readClassicData(_CLASSIC_ADR[slot])
+            reg_text = "".join(chr(x) for x in reg_data)
+            total_string = total_string + reg_text
+            if 0 in reg_data: # Null found.  Job complete.
+                substring = total_string.split('\0')
+                return substring[0]
+    except: pass
     return total_string
 
 # Reads text from the tag.
-def readText(self):
+def readText(self, timeout=0):
     text = ''
     read_tag_id_result = self.readTagID()
+    start = now()
     while read_tag_id_result['success'] is False:
         read_tag_id_result = self.readTagID()
+        if timeout > 0 and now() - start > timeout: break # trigger a timeout
     if read_tag_id_result['type'] == 'ntag':
         text = self._readTextFromNtag()
     if read_tag_id_result['type'] == 'classic':
